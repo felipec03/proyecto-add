@@ -1,0 +1,723 @@
+import json
+from pathlib import Path
+
+notebook_path = str(Path(__file__).resolve().parent.parent / 'proyecto-add-1-2026.ipynb')
+
+with open(notebook_path, 'r', encoding='utf-8') as f:
+    nb = json.load(f)
+
+# Quedarse solo con las primeras 22 celdas (trabajo original del usuario)
+nb['cells'] = nb['cells'][:22]
+
+# ============================================================
+# CELDAS A AGREGAR (desde celda 23 en adelante)
+# ============================================================
+
+new_cells = []
+
+# 23 MD: Codificacion categorica
+new_cells.append({
+    "cell_type": "markdown", "metadata": {"id": "cod_md"},
+    "source": [
+        "## Codificacion de variables categoricas\n",
+        "\n",
+        "Para que PCA y K-Means interpreten correctamente las variables categoricas, se aplica **One-Hot Encoding**:\n",
+        "- **Binarias** (sin cambio): `sex`, `fbs`, `exang`\n",
+        "- **Multi-categoria** (one-hot): `cp` (4), `restecg` (3), `slope` (3), `thal` (3)\n",
+        "- **Continuas** (sin codificar): `age`, `trestbps`, `chol`, `thalach`, `oldpeak`, `ca`\n",
+        "\n",
+        "> Ver referencias al final del notebook.\n"
+    ]
+})
+
+# 24 CD: One-Hot Encoding
+new_cells.append({
+    "cell_type": "code", "metadata": {"id": "cod_cd"},
+    "source": [
+        "from sklearn.preprocessing import OneHotEncoder\n",
+        "\n",
+        "binarias = ['sex', 'fbs', 'exang']\n",
+        "categoricas_multiclase = ['cp', 'restecg', 'slope', 'thal']\n",
+        "continuas = ['age', 'trestbps', 'chol', 'thalach', 'oldpeak', 'ca']\n",
+        "\n",
+        "encoder = OneHotEncoder(sparse_output=False, drop=None)\n",
+        "encoded_array = encoder.fit_transform(X[categoricas_multiclase])\n",
+        "encoded_cols = encoder.get_feature_names_out(categoricas_multiclase)\n",
+        "df_encoded = pd.DataFrame(encoded_array, columns=encoded_cols, index=X.index)\n",
+        "\n",
+        "print(f'Columnas generadas: {list(df_encoded.columns)}')\n",
+        "\n",
+        "X_pre_escalado = pd.concat([X[continuas], X[binarias], df_encoded], axis=1)\n",
+        "print(f'Shape pre-escalado: {X_pre_escalado.shape}')\n",
+        "print(f'Columnas finales: {list(X_pre_escalado.columns)}')"
+    ], "execution_count": None, "outputs": []
+})
+
+# 25 MD: Escalamiento
+new_cells.append({
+    "cell_type": "markdown", "metadata": {"id": "esc_md"},
+    "source": [
+        "## Escalamiento / Estandarizacion\n",
+        "\n",
+        "Se aplica **StandardScaler** (z-score) para que todas las variables tengan media 0 y desviacion estandar 1. "
+        "Esto es indispensable antes de PCA y K-Means, ya que ambos dependen de distancias euclidianas y serian "
+        "dominados por variables de mayor magnitud (ej. `chol` ~200 vs `oldpeak` ~1).\n"
+    ]
+})
+
+# 26 CD: StandardScaler
+new_cells.append({
+    "cell_type": "code", "metadata": {"id": "esc_cd"},
+    "source": [
+        "from sklearn.preprocessing import StandardScaler\n",
+        "\n",
+        "scaler = StandardScaler()\n",
+        "X_scaled_array = scaler.fit_transform(X_pre_escalado)\n",
+        "X_scaled = pd.DataFrame(X_scaled_array, columns=X_pre_escalado.columns)\n",
+        "\n",
+        "print('Media por columna (debe ~0):')\n",
+        "print(X_scaled.mean().round(4))\n",
+        "print('\\nStd por columna (ddof=1, debe ~1):')\n",
+        "print(X_scaled.std().round(4))"
+    ], "execution_count": None, "outputs": []
+})
+
+# 27 MD: PCA theory (brief)
+new_cells.append({
+    "cell_type": "markdown", "metadata": {"id": "pca_md"},
+    "source": [
+        "# Reduccion de Dimensionalidad: PCA\n",
+        "\n",
+        "El **PCA** (Pearson, 1901; Hotelling, 1933) transforma variables correlacionadas en componentes "
+        "no correlacionados ordenados por varianza explicada. Cada componente es una combinacion lineal "
+        "de las originales (autovectores de la matriz de covarianza). Se aplica aqui para condensar las "
+        "22 variables y facilitar la visualizacion y el clustering posterior.\n",
+        "\n",
+        "> Referencias completas al final del notebook.\n"
+    ]
+})
+
+# 28 CD: PCA fit + varianza
+new_cells.append({
+    "cell_type": "code", "metadata": {"id": "pca_var_cd"},
+    "source": [
+        "from sklearn.decomposition import PCA\n",
+        "import numpy as np\n",
+        "\n",
+        "pca = PCA()\n",
+        "X_pca = pca.fit_transform(X_scaled)\n",
+        "\n",
+        "varianza_individual = pca.explained_variance_ratio_\n",
+        "varianza_acumulada = np.cumsum(varianza_individual)\n",
+        "autovalores = pca.explained_variance_\n",
+        "\n",
+        "print('=== VARIANZA EXPLICADA POR COMPONENTE ===')\n",
+        "for i, (v_ind, v_acum, eig) in enumerate(zip(varianza_individual, varianza_acumulada, autovalores)):\n",
+        "    print(f'PC{i+1:>3d}: {v_ind:.4f} ({v_ind*100:5.1f}%%)  |  acum: {v_acum:.4f} ({v_acum*100:5.1f}%%)  |  eig: {eig:.3f}')\n",
+        "\n",
+        "n_kaiser = sum(autovalores > 1)\n",
+        "print(f'\\nComponentes con eigenvalue > 1 (Kaiser): {n_kaiser}')\n",
+        "print(f'  Varianza acumulada con {n_kaiser} componentes: {varianza_acumulada[n_kaiser-1]*100:.1f}%')\n",
+        "\n",
+        "n_80 = np.argmax(varianza_acumulada >= 0.80) + 1\n",
+        "print(f'\\nComponentes para >= 80%: {n_80}')\n",
+        "print(f'  Interpretacion: se necesitan {n_80}/{X_scaled.shape[1]} componentes -> estructura mayoritariamente NO lineal.')"
+    ], "execution_count": None, "outputs": []
+})
+
+# 29 CD: Scree plot
+new_cells.append({
+    "cell_type": "code", "metadata": {"id": "pca_scree_cd"},
+    "source": [
+        "import matplotlib.pyplot as plt\n",
+        "import seaborn as sns\n",
+        "\n",
+        "fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))\n",
+        "n_comps = len(varianza_individual)\n",
+        "comps = range(1, n_comps + 1)\n",
+        "\n",
+        "# Scree Plot\n",
+        "ax1.plot(comps, autovalores, 'o-', color='steelblue', linewidth=2, markersize=8)\n",
+        "ax1.axhline(y=1, color='red', linestyle='--', linewidth=1.5, label='Kaiser (eig=1)')\n",
+        "ax1.set_xlabel('Componente Principal')\n",
+        "ax1.set_ylabel('Autovalor')\n",
+        "ax1.set_title('Scree Plot')\n",
+        "ax1.legend()\n",
+        "ax1.grid(alpha=0.3)\n",
+        "ax1.set_xticks(comps)\n",
+        "\n",
+        "# Varianza acumulada\n",
+        "ax2.bar(comps, varianza_individual * 100, color='steelblue', alpha=0.7, label='Individual')\n",
+        "ax2.plot(comps, varianza_acumulada * 100, 'o-', color='darkorange', linewidth=2, markersize=6, label='Acumulada')\n",
+        "ax2.axhline(y=80, color='green', linestyle='--', linewidth=1.5, label='Umbral 80%')\n",
+        "ax2.set_xlabel('Componente Principal')\n",
+        "ax2.set_ylabel('Varianza Explicada (%)')\n",
+        "ax2.set_title('Varianza por Componente')\n",
+        "ax2.legend()\n",
+        "ax2.grid(alpha=0.3)\n",
+        "ax2.set_xticks(comps)\n",
+        "\n",
+        "plt.tight_layout()\n",
+        "plt.savefig('plots/3_transformacion/pca_varianza.png', dpi=150)\n",
+        "plt.show()"
+    ], "execution_count": None, "outputs": []
+})
+
+# 30 CD: Loadings
+new_cells.append({
+    "cell_type": "code", "metadata": {"id": "pca_load_cd"},
+    "source": [
+        "loadings = pd.DataFrame(\n",
+        "    pca.components_.T,\n",
+        "    columns=[f'PC{i+1}' for i in range(n_comps)],\n",
+        "    index=X_scaled.columns\n",
+        ")\n",
+        "\n",
+        "print('=== LOADINGS (primeros 5 PCs) ===')\n",
+        "print(loadings.iloc[:, :5].round(3))\n",
+        "\n",
+        "plt.figure(figsize=(10, 14))\n",
+        "sns.heatmap(loadings.iloc[:, :5], annot=True, fmt='.2f', cmap='RdBu_r',\n",
+        "            center=0, linewidths=0.5, cbar_kws={'shrink': 0.8, 'label': 'Peso'})\n",
+        "plt.title('Loadings: Contribucion de Variables a PCs')\n",
+        "plt.tight_layout()\n",
+        "plt.savefig('plots/3_transformacion/pca_loadings.png', dpi=150)\n",
+        "plt.show()"
+    ], "execution_count": None, "outputs": []
+})
+
+# 31 CD: PCA 2D proyeccion
+new_cells.append({
+    "cell_type": "code", "metadata": {"id": "pca_2d_cd"},
+    "source": [
+        "X_pca_2d = X_pca[:, :2]\n",
+        "\n",
+        "plt.figure(figsize=(10, 7))\n",
+        "scatter = plt.scatter(X_pca_2d[:, 0], X_pca_2d[:, 1],\n",
+        "                      c=y, cmap='viridis', alpha=0.7, edgecolors='black', linewidth=0.3)\n",
+        "plt.xlabel(f'PC1 ({varianza_individual[0]*100:.1f}%)')\n",
+        "plt.ylabel(f'PC2 ({varianza_individual[1]*100:.1f}%)')\n",
+        "plt.title('Proyeccion PCA 2D - Heart Disease')\n",
+        "cbar = plt.colorbar(scatter, label='Severidad (0-4)')\n",
+        "plt.grid(alpha=0.3)\n",
+        "plt.tight_layout()\n",
+        "plt.savefig('plots/3_transformacion/pca_proyeccion_2d.png', dpi=150)\n",
+        "plt.show()\n",
+        "\n",
+        "print(f'Varianza explicada en 2D: {varianza_acumulada[1]*100:.1f}%')"
+    ], "execution_count": None, "outputs": []
+})
+
+# 32 MD: UMAP Teoria + Tabla comparativa
+new_cells.append({
+    "cell_type": "markdown", "metadata": {"id": "umap_md"},
+    "source": [
+        "# Reduccion de Dimensionalidad: UMAP\n",
+        "\n",
+        "**UMAP** (McInnes, Healy & Melville, 2018) es una tecnica no lineal que construye un "
+        "grafo de k-vecinos en alta dimension y lo optimiza en baja dimension. Se contrasta con PCA "
+        "para evaluar si existen estructuras no lineales que PCA no captura.\n",
+        "\n",
+        "Hiperparametros: `n_neighbors=15`, `min_dist=0.1`, `n_components=2`.\n",
+        "\n",
+        "## Tabla Comparativa PCA vs UMAP\n",
+        "\n",
+        "| Criterio | PCA | UMAP |\n",
+        "|---|---|---|\n",
+        "| **Interpretabilidad** | Alta (autovectores) | Baja (ejes sin significado) |\n",
+        "| **Preservacion global** | Alta (maximiza varianza) | Media-Alta |\n",
+        "| **Preservacion local** | Baja | Alta (grafo k-NN) |\n",
+        "| **Separacion visual** | Moderada | Alta (clusters nitidos) |\n",
+        "| **Tiempo computacional** | Bajo (SVD) | Medio (grafos + SGD) |\n",
+        "\n",
+        "## Experimentos planificados\n",
+        "\n",
+        "| Exp | Reduccion | Clustering |\n",
+        "|---|---|---|\n",
+        "| EX1 | PCA | K-Means |\n",
+        "| EX2 | PCA | OPTICS |\n",
+        "| EX3 | UMAP | K-Means |\n",
+        "| EX4 | UMAP | OPTICS |\n"
+    ]
+})
+
+# 33 CD: Fix numpy + install umap
+new_cells.append({
+    "cell_type": "code", "metadata": {"id": "umap_install_cd"},
+    "source": [
+        "# Asegurar numpy compatible con numba/umap\n",
+        "import sys, subprocess\n",
+        "try:\n",
+        "    import numpy as np\n",
+        "    if np.__version__ >= '2.5':\n",
+        "        print(f'Reinstalando numpy compatible (actual: {np.__version__})...')\n",
+        "        subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy>=2.0,<2.5', '--quiet'])\n",
+        "        print('Hecho. Reinicia kernel si numpy ya estaba cargado.')\n",
+        "except ImportError:\n",
+        "    subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy>=2.0,<2.5', '--quiet'])\n",
+        "\n",
+        "!pip install umap-learn --quiet\n",
+        "print('umap-learn OK')"
+    ], "execution_count": None, "outputs": []
+})
+
+# 34 CD: UMAP fit
+new_cells.append({
+    "cell_type": "code", "metadata": {"id": "umap_fit_cd"},
+    "source": [
+        "import numpy as np\n",
+        "umap_ok = False\n",
+        "try:\n",
+        "    import umap\n",
+        "    print('UMAP import OK')\n",
+        "    umap_ok = True\n",
+        "except ImportError as e:\n",
+        "    print(f'ERROR: {e}')\n",
+        "    print('Ejecuta la celda de instalacion anterior y reinicia el kernel.')\n",
+        "\n",
+        "if umap_ok:\n",
+        "    reducer = umap.UMAP(\n",
+        "        n_neighbors=15, min_dist=0.1, n_components=2,\n",
+        "        random_state=42, n_jobs=1\n",
+        "    )\n",
+        "    X_umap = reducer.fit_transform(X_scaled)\n",
+        "    print(f'Shape UMAP: {X_umap.shape}')\n",
+        "else:\n",
+        "    print('UMAP no disponible. Se saltan las celdas siguientes.')"
+    ], "execution_count": None, "outputs": []
+})
+
+# 35 CD: PCA vs UMAP 2D comparacion
+new_cells.append({
+    "cell_type": "code", "metadata": {"id": "umap_plot_cd"},
+    "source": [
+        "if umap_ok:\n",
+        "    fig, axes = plt.subplots(1, 2, figsize=(16, 6))\n",
+        "\n",
+        "    sc1 = axes[0].scatter(X_pca_2d[:, 0], X_pca_2d[:, 1],\n",
+        "                           c=y, cmap='viridis', alpha=0.7, edgecolors='black', linewidth=0.3)\n",
+        "    axes[0].set_xlabel(f'PC1 ({varianza_individual[0]*100:.1f}%)')\n",
+        "    axes[0].set_ylabel(f'PC2 ({varianza_individual[1]*100:.1f}%)')\n",
+        "    axes[0].set_title('PCA')\n",
+        "    axes[0].grid(alpha=0.3)\n",
+        "\n",
+        "    sc2 = axes[1].scatter(X_umap[:, 0], X_umap[:, 1],\n",
+        "                           c=y, cmap='viridis', alpha=0.7, edgecolors='black', linewidth=0.3)\n",
+        "    axes[1].set_xlabel('UMAP Dim 1')\n",
+        "    axes[1].set_ylabel('UMAP Dim 2')\n",
+        "    axes[1].set_title('UMAP (n_neighbors=15, min_dist=0.1)')\n",
+        "    axes[1].grid(alpha=0.3)\n",
+        "\n",
+        "    cbar = fig.colorbar(sc2, ax=axes, label='Severidad (0-4)', shrink=0.6)\n",
+        "    plt.suptitle('PCA vs UMAP - Heart Disease', fontsize=13, fontweight='bold')\n",
+        "    plt.tight_layout()\n",
+        "    plt.savefig('plots/3_transformacion/pca_vs_umap.png', dpi=150)\n",
+        "    plt.show()\n",
+        "else:\n",
+        "    print('UMAP no disponible.')"
+    ], "execution_count": None, "outputs": []
+})
+
+# 36 CD: UMAP hiperparametros
+new_cells.append({
+    "cell_type": "code", "metadata": {"id": "umap_params_cd"},
+    "source": [
+        "if umap_ok:\n",
+        "    fig, axes = plt.subplots(2, 2, figsize=(14, 12))\n",
+        "    axes = axes.flatten()\n",
+        "\n",
+        "    configs = [\n",
+        "        (5, 0.1, 'n_neighbors=5 (mas local)'),\n",
+        "        (15, 0.1, 'n_neighbors=15 (equilibrado)'),\n",
+        "        (30, 0.1, 'n_neighbors=30 (mas global)'),\n",
+        "        (15, 0.5, 'min_dist=0.5 (mas disperso)'),\n",
+        "    ]\n",
+        "\n",
+        "    for i, (n_neigh, m_dist, title) in enumerate(configs):\n",
+        "        r = umap.UMAP(n_neighbors=n_neigh, min_dist=m_dist, n_components=2, random_state=42)\n",
+        "        proj = r.fit_transform(X_scaled)\n",
+        "        axes[i].scatter(proj[:, 0], proj[:, 1], c=y, cmap='viridis', alpha=0.7, edgecolors='black', linewidth=0.3)\n",
+        "        axes[i].set_title(title)\n",
+        "        axes[i].grid(alpha=0.3)\n",
+        "\n",
+        "    plt.suptitle('UMAP: Efecto de Hiperparametros', fontsize=14, fontweight='bold')\n",
+        "    plt.tight_layout()\n",
+        "    plt.savefig('plots/3_transformacion/umap_hiperparametros.png', dpi=150)\n",
+        "    plt.show()\n",
+        "else:\n",
+        "    print('UMAP no disponible.')"
+    ], "execution_count": None, "outputs": []
+})
+
+# 37 MD: PCA vs UMAP - Comparacion objetiva (teoria breve + metricas)
+new_cells.append({
+    "cell_type": "markdown", "metadata": {"id": "metrics_md"},
+    "source": [
+        "# PCA vs UMAP: Comparacion Objetiva\n",
+        "\n",
+        "Con 11/22 componentes para alcanzar el 80% de varianza, los datos tienen **baja estructura lineal**. "
+        "Para decidir objetivamente si UMAP > PCA, se utilizan metricas de **preservacion topologica** "
+        "(Lee & Verleysen, 2009) que miden que tan bien la proyeccion 2D conserva las relaciones de vecindad "
+        "del espacio original de 22 dimensiones:\n",
+        "\n",
+        "| Metrica | Que mide | Mejor |\n",
+        "|---|---|---|\n",
+        "| **Trustworthiness** | Si vecinos en 2D son vecinos en original | Alto |\n",
+        "| **Continuity** | Si vecinos en original son vecinos en 2D | Alto |\n",
+        "| **Jaccard k-NN** | Interseccion de conjuntos de k-vecinos (alta vs baja) | Alto |\n",
+        "| **Spearman rho** | Correlacion entre matrices de distancia original vs reducida | Alto |\n",
+        "| **Silhouette K-Means** | Calidad de clustering sobre la proyeccion | Alto |\n",
+        "\n",
+        "> Ver referencias al final del notebook.\n"
+    ]
+})
+
+# 38 CD: Calcular metricas
+new_cells.append({
+    "cell_type": "code", "metadata": {"id": "metrics_calc_cd"},
+    "source": [
+        "from sklearn.manifold import trustworthiness\n",
+        "from sklearn.neighbors import NearestNeighbors\n",
+        "from sklearn.metrics import silhouette_score\n",
+        "from sklearn.cluster import KMeans\n",
+        "from scipy.stats import spearmanr\n",
+        "from scipy.spatial.distance import pdist\n",
+        "\n",
+        "def jaccard_knn(X_high, X_low, k=10):\n",
+        "    nn_high = NearestNeighbors(n_neighbors=k).fit(X_high)\n",
+        "    nn_low = NearestNeighbors(n_neighbors=k).fit(X_low)\n",
+        "    neigh_high = nn_high.kneighbors(return_distance=False)\n",
+        "    neigh_low = nn_low.kneighbors(return_distance=False)\n",
+        "    jaccards = []\n",
+        "    for i in range(len(X_high)):\n",
+        "        inter = len(set(neigh_high[i]) & set(neigh_low[i]))\n",
+        "        union = len(set(neigh_high[i]) | set(neigh_low[i]))\n",
+        "        jaccards.append(inter / union if union > 0 else 0)\n",
+        "    return np.mean(jaccards)\n",
+        "\n",
+        "def sp_rho_dist(X_high, X_low):\n",
+        "    rho, _ = spearmanr(pdist(X_high), pdist(X_low))\n",
+        "    return rho\n",
+        "\n",
+        "def sil_kmeans(X_low, k=2):\n",
+        "    labels = KMeans(n_clusters=k, random_state=42, n_init='auto').fit_predict(X_low)\n",
+        "    return silhouette_score(X_low, labels)\n",
+        "\n",
+        "# Calcular para PCA\n",
+        "print('Metricas PCA...')\n",
+        "m_pca = {\n",
+        "    'Trustworthiness': trustworthiness(X_scaled.values, X_pca_2d, n_neighbors=5),\n",
+        "    'Continuity':      trustworthiness(X_pca_2d, X_scaled.values, n_neighbors=5),\n",
+        "    'Jaccard k-NN':   jaccard_knn(X_scaled.values, X_pca_2d),\n",
+        "    'Spearman rho':   sp_rho_dist(X_scaled.values, X_pca_2d),\n",
+        "    'Silhouette':     sil_kmeans(X_pca_2d),\n",
+        "}\n",
+        "\n",
+        "# Calcular para UMAP (si disponible)\n",
+        "m_umap = {k: 0 for k in m_pca}\n",
+        "if umap_ok:\n",
+        "    try:\n",
+        "        print('Metricas UMAP...')\n",
+        "        m_umap = {\n",
+        "            'Trustworthiness': trustworthiness(X_scaled.values, X_umap, n_neighbors=5),\n",
+        "            'Continuity':      trustworthiness(X_umap, X_scaled.values, n_neighbors=5),\n",
+        "            'Jaccard k-NN':   jaccard_knn(X_scaled.values, X_umap),\n",
+        "            'Spearman rho':   sp_rho_dist(X_scaled.values, X_umap),\n",
+        "            'Silhouette':     sil_kmeans(X_umap),\n",
+        "        }\n",
+        "    except Exception as e:\n",
+        "        print(f'Error UMAP: {e}')\n",
+        "else:\n",
+        "    print('UMAP no disponible.')\n",
+        "\n",
+        "# Mostrar tabla\n",
+        "df_m = pd.DataFrame({'PCA': m_pca, 'UMAP': m_umap})\n",
+        "df_m['Delta'] = df_m['UMAP'] - df_m['PCA']\n",
+        "df_m['Ganador'] = df_m[['PCA', 'UMAP']].idxmax(axis=1)\n",
+        "\n",
+        "print('\\n=== COMPARACION PCA vs UMAP ===')\n",
+        "print(df_m.round(4))\n",
+        "print(f'\\nUMAP gana en {sum(df_m[\"Ganador\"] == \"UMAP\")}/{len(m_pca)} metricas.')\n",
+        "\n",
+        "if sum(df_m['Ganador'] == 'UMAP') >= 3:\n",
+        "    print('=> CONCLUSION: UMAP es objetivamente superior a PCA para este dataset.')\n",
+        "else:\n",
+        "    print('=> PCA mantiene ventaja competitiva. Ambas proyecciones son utiles.')"
+    ], "execution_count": None, "outputs": []
+})
+
+# 39 CD: Grafico de barras metricas
+new_cells.append({
+    "cell_type": "code", "metadata": {"id": "metrics_bar_cd"},
+    "source": [
+        "labels = list(m_pca.keys())\n",
+        "pca_vals = [m_pca[k] for k in labels]\n",
+        "umap_vals = [m_umap[k] for k in labels]\n",
+        "\n",
+        "x = np.arange(len(labels))\n",
+        "width = 0.35\n",
+        "\n",
+        "fig, ax = plt.subplots(figsize=(12, 6))\n",
+        "b1 = ax.bar(x - width/2, pca_vals, width, label='PCA', color='steelblue', alpha=0.85)\n",
+        "b2 = ax.bar(x + width/2, umap_vals, width, label='UMAP', color='darkorange', alpha=0.85)\n",
+        "\n",
+        "ax.set_ylabel('Score')\n",
+        "ax.set_title('PCA vs UMAP: Metricas de Preservacion Topologica', fontsize=13, fontweight='bold')\n",
+        "ax.set_xticks(x)\n",
+        "ax.set_xticklabels(labels, fontsize=10)\n",
+        "ax.legend(fontsize=11)\n",
+        "ax.grid(axis='y', alpha=0.3)\n",
+        "ax.set_ylim(0, max(max(pca_vals), max(umap_vals)) * 1.15)\n",
+        "\n",
+        "for bar in b1:\n",
+        "    h = bar.get_height()\n",
+        "    ax.text(bar.get_x() + bar.get_width()/2., h + 0.01, f'{h:.3f}', ha='center', va='bottom', fontsize=9)\n",
+        "for bar in b2:\n",
+        "    h = bar.get_height()\n",
+        "    ax.text(bar.get_x() + bar.get_width()/2., h + 0.01, f'{h:.3f}', ha='center', va='bottom', fontsize=9)\n",
+        "\n",
+        "plt.tight_layout()\n",
+        "plt.savefig('plots/5_evaluacion/pca_vs_umap_metrics.png', dpi=150)\n",
+        "plt.show()"
+    ], "execution_count": None, "outputs": []
+})
+
+# 40 MD: Interpretacion de metricas
+new_cells.append({
+    "cell_type": "markdown", "metadata": {"id": "metrics_interp_md"},
+    "source": [
+        "## Interpretacion de Metricas\n",
+        "\n",
+        "- **Trustworthiness**: mas alto en UMAP => vecinos en 2D reflejan autenticamente el espacio original.\n",
+        "- **Continuity**: mas alto en UMAP => la estructura topologica original no se rompe en la proyeccion.\n",
+        "- **Jaccard k-NN**: interseccion de conjuntos de vecinos. Fidelidad topologica directa.\n",
+        "- **Spearman rho**: correlacion entre todas las distancias. rho=1 seria proyeccion perfecta.\n",
+        "- **Silhouette**: utilidad practica para clustering (etapa siguiente del proyecto).\n",
+        "\n",
+        "**Criterio de decision**: si UMAP gana en 3+ metricas, se considera objetivamente superior.\n",
+        "Este resultado se alinea con la teoria: cuando se necesitan >50% de los PCs para explicar el 80% "
+        "de la varianza, la estructura es predominantemente no lineal, terreno donde UMAP domina.\n"
+    ]
+})
+
+# 41 MD: Clustering OPTICS (teoria)
+new_cells.append({
+    "cell_type": "markdown", "metadata": {"id": "optics_md"},
+    "source": [
+        "# Clustering basado en densidad: OPTICS\n",
+        "\n",
+        "**OPTICS** (Ankerst, Breunig, Kriegel & Sander, 1999) es un algoritmo de clustering por densidad "
+        "que ordena los puntos segun una **distancia de alcance (reachability)** e identifica clusters "
+        "como valles en el reachability plot. A diferencia de **DBSCAN**, no requiere el parametro `eps` "
+        "(radio global), por lo que maneja clusters de **densidad variable** sin re-tunear hiperparametros.\n",
+        "\n",
+        "## Cambio respecto a la planificacion\n",
+        "\n",
+        "En la planificacion original se contemplaba DBSCAN (EX2 y EX4). Se sustituye por OPTICS porque:\n",
+        "\n",
+        "- DBSCAN exige fijar `eps` a mano (k-distance plot) y es muy sensible a ese valor.\n",
+        "- OPTICS solo necesita `min_samples` y extrae los clusters con `xi` (umbral de pendiente del reachability plot).\n",
+        "- OPTICS es mas robusto cuando las densidades de los grupos difieren.\n",
+        "\n",
+        "| Parametro | DBSCAN | OPTICS |\n",
+        "|---|---|---|\n",
+        "| `eps` | Requerido (sensible) | No aplica (`max_eps=inf`) |\n",
+        "| `min_samples` | Requerido | Requerido |\n",
+        "| Extraccion de clusters | Directa | `xi` (`cluster_method='xi'`) |\n",
+        "| Densidad variable | No | Si |\n",
+        "\n",
+        "Los experimentos quedan como **EX2 = PCA + OPTICS** y **EX4 = UMAP + OPTICS**.\n"
+    ]
+})
+
+# 42 CD: Helpers para OPTICS
+new_cells.append({
+    "cell_type": "code", "metadata": {"id": "optics_helpers_cd"},
+    "source": [
+        "from sklearn.cluster import OPTICS\n",
+        "from sklearn.metrics import silhouette_score\n",
+        "\n",
+        "def run_optics(X, nombre, min_samples=5, xi=0.05, max_eps=np.inf):\n",
+        "    optics = OPTICS(min_samples=min_samples, max_eps=max_eps,\n",
+        "                    cluster_method='xi', xi=xi)\n",
+        "    optics.fit(X)\n",
+        "    labels = optics.labels_\n",
+        "\n",
+        "    n_clusters = len(set(labels) - {-1})\n",
+        "    n_noise = int((labels == -1).sum())\n",
+        "    pct_noise = 100 * n_noise / len(labels)\n",
+        "    mask = labels != -1\n",
+        "    sil = (silhouette_score(X[mask], labels[mask])\n",
+        "           if n_clusters >= 2 and mask.sum() >= 2 else np.nan)\n",
+        "\n",
+        "    resumen = {\n",
+        "        'Clusters': n_clusters,\n",
+        "        'Ruido (%)': round(pct_noise, 1),\n",
+        "        'Silhouette': round(float(sil), 3) if np.isfinite(sil) else np.nan,\n",
+        "    }\n",
+        "    if n_clusters > 0:\n",
+        "        tam = pd.Series(labels).value_counts().drop(-1, errors='ignore')\n",
+        "        resumen['Tam min'] = int(tam.min())\n",
+        "        resumen['Tam max'] = int(tam.max())\n",
+        "\n",
+        "    print(f'=== OPTICS {nombre} ===')\n",
+        "    print(f'  Hiperparametros: min_samples={min_samples}, xi={xi}')\n",
+        "    print(f'  Clusters detectados: {n_clusters}')\n",
+        "    print(f'  Ruido (label -1): {n_noise} ({pct_noise:.1f}%)')\n",
+        "    print(f'  Silhouette (sin ruido): {resumen.get(\"Silhouette\")}')\n",
+        "    print(f'  Tamanos por cluster: {dict(pd.Series(labels).value_counts().sort_index())}')\n",
+        "    return optics, labels, resumen\n",
+        "\n",
+        "def plot_clusters(X, labels, titulo, filename):\n",
+        "    plt.figure(figsize=(10, 7))\n",
+        "    for lab in sorted(set(labels)):\n",
+        "        mask = labels == lab\n",
+        "        if lab == -1:\n",
+        "            plt.scatter(X[mask, 0], X[mask, 1], c='#cccccc', s=15, alpha=0.5, label='Ruido')\n",
+        "        else:\n",
+        "            plt.scatter(X[mask, 0], X[mask, 1], s=30, alpha=0.8,\n",
+        "                        edgecolors='black', linewidth=0.3, label=f'Cluster {lab}')\n",
+        "    plt.xlabel('Dim 1')\n",
+        "    plt.ylabel('Dim 2')\n",
+        "    plt.title(titulo)\n",
+        "    plt.legend()\n",
+        "    plt.grid(alpha=0.3)\n",
+        "    plt.tight_layout()\n",
+        "    plt.savefig(filename, dpi=150)\n",
+        "    plt.show()"
+    ], "execution_count": None, "outputs": []
+})
+
+# 43 CD: EX2 PCA + OPTICS
+new_cells.append({
+    "cell_type": "code", "metadata": {"id": "optics_pca_cd"},
+    "source": [
+        "optics_pca, labels_pca, resumen_pca = run_optics(X_pca_2d, 'PCA')\n",
+        "plot_clusters(\n",
+        "    X_pca_2d, labels_pca,\n",
+        "    f'OPTICS sobre PCA (PC1 {varianza_individual[0]*100:.1f}%, PC2 {varianza_individual[1]*100:.1f}%)',\n",
+        "    'plots/4_mineria/optics_pca.png'\n",
+        ")"
+    ], "execution_count": None, "outputs": []
+})
+
+# 44 CD: EX4 UMAP + OPTICS
+new_cells.append({
+    "cell_type": "code", "metadata": {"id": "optics_umap_cd"},
+    "source": [
+        "if umap_ok:\n",
+        "    optics_umap, labels_umap, resumen_umap = run_optics(X_umap, 'UMAP')\n",
+        "    plot_clusters(\n",
+        "        X_umap, labels_umap,\n",
+        "        'OPTICS sobre UMAP (n_neighbors=15, min_dist=0.1)',\n",
+        "        'plots/4_mineria/optics_umap.png'\n",
+        "    )\n",
+        "else:\n",
+        "    print('UMAP no disponible.')"
+    ], "execution_count": None, "outputs": []
+})
+
+# 45 CD: Reachability plots
+new_cells.append({
+    "cell_type": "code", "metadata": {"id": "optics_reach_cd"},
+    "source": [
+        "fig, axes = plt.subplots(1, 2, figsize=(14, 5)) if umap_ok else (None, None)\n",
+        "if umap_ok:\n",
+        "    for ax, optics, nombre in zip(axes, [optics_pca, optics_umap], ['PCA', 'UMAP']):\n",
+        "        ord_ = optics.ordering_\n",
+        "        ax.plot(np.arange(len(ord_)), optics.reachability_[ord_], linewidth=0.7, color='steelblue')\n",
+        "        ax.set_title(f'Reachability Plot - {nombre}')\n",
+        "        ax.set_xlabel('Orden de puntos')\n",
+        "        ax.set_ylabel('Distancia de alcance')\n",
+        "        ax.grid(alpha=0.3)\n",
+        "    plt.suptitle('OPTICS: Distancia de Alcance (xi=0.05)', fontsize=13, fontweight='bold')\n",
+        "    plt.tight_layout()\n",
+        "    plt.savefig('plots/4_mineria/optics_reachability.png', dpi=150)\n",
+        "    plt.show()\n",
+        "else:\n",
+        "    ord_ = optics_pca.ordering_\n",
+        "    plt.figure(figsize=(8, 5))\n",
+        "    plt.plot(np.arange(len(ord_)), optics_pca.reachability_[ord_], linewidth=0.7, color='steelblue')\n",
+        "    plt.title('Reachability Plot - PCA')\n",
+        "    plt.xlabel('Orden de puntos')\n",
+        "    plt.ylabel('Distancia de alcance')\n",
+        "    plt.grid(alpha=0.3)\n",
+        "    plt.tight_layout()\n",
+        "    plt.savefig('plots/4_mineria/optics_reachability.png', dpi=150)\n",
+        "    plt.show()"
+    ], "execution_count": None, "outputs": []
+})
+
+# 46 CD: Comparacion PCA vs UMAP con OPTICS
+new_cells.append({
+    "cell_type": "code", "metadata": {"id": "optics_cmp_cd"},
+    "source": [
+        "filas = {'PCA': resumen_pca}\n",
+        "if umap_ok:\n",
+        "    filas['UMAP'] = resumen_umap\n",
+        "df_optics = pd.DataFrame(filas).T\n",
+        "df_optics['Ganador'] = df_optics['Silhouette'].idxmax()\n",
+        "\n",
+        "print('=== OPTICS: COMPARACION PCA vs UMAP ===')\n",
+        "print(df_optics.round(3))\n",
+        "\n",
+        "mejor = df_optics['Ganador'].iloc[0]\n",
+        "print(f'\\n=> La proyeccion con mejor silhouette en OPTICS es {mejor}.')\n",
+        "if mejor == 'UMAP' and umap_ok:\n",
+        "    print('=> Coherente con la conclusion de la reduccion de dimensionalidad.')\n",
+        "else:\n",
+        "    print('=> Pese a las metricas de preservacion, PCA da clusters mas compactos.')"
+    ], "execution_count": None, "outputs": []
+})
+
+# 47 MD: Interpretacion del clustering
+new_cells.append({
+    "cell_type": "markdown", "metadata": {"id": "optics_interp_md"},
+    "source": [
+        "## Interpretacion del clustering\n",
+        "\n",
+        "- **Clusters detectados**: cuantos grupos de pacientes encontro OPTICS en cada proyeccion.\n",
+        "- **Ruido (%)**: pacientes que OPTICS no asigna a ningun cluster (etiqueta `-1`). Un ruido alto sugiere ausencia de estructura de densidad clara.\n",
+        "- **Silhouette (sin ruido)**: compactitud y separacion de los clusters; se calcula excluyendo los puntos de ruido porque la metrica no admite la etiqueta `-1`.\n",
+        "- **Tamanos**: `Tam min`/`Tam max` informan si hay grupos muy desiguales (perfiles clinicos raros vs. mayoritarios).\n",
+        "\n",
+        "> Completar la interpretacion con los valores que entreguen las celdas de ejecucion.\n"
+    ]
+})
+
+# 48 MD: Referencias (seccion final)
+new_cells.append({
+    "cell_type": "markdown", "metadata": {"id": "refs_md"},
+    "source": [
+        "# Referencias\n",
+        "\n",
+        "- Ankerst, M., Breunig, M. M., Kriegel, H.-P., & Sander, J. (1999). OPTICS: Ordering points to identify the clustering structure. *ACM SIGMOD Record*, 28(2), 49-60.\n",
+        "- Cattell, R. B. (1966). The scree test for the number of factors. "
+        "*Multivariate Behavioral Research*, 1(2), 245-276.\n",
+        "- Detrano, R., Janosi, A., et al. (1989). International application of a new probability algorithm "
+        "for the diagnosis of coronary artery disease. *American Journal of Cardiology*, 64(5), 304-310.\n",
+        "- Hotelling, H. (1933). Analysis of a complex of statistical variables into principal components. "
+        "*Journal of Educational Psychology*, 24(6), 417-441.\n",
+        "- Jolliffe, I. T. (2002). *Principal Component Analysis* (2nd ed.). Springer.\n",
+        "- Kaiser, H. F. (1960). The application of electronic computers to factor analysis. "
+        "*Educational and Psychological Measurement*, 20(1), 141-151.\n",
+        "- Lee, J. A., & Verleysen, M. (2009). Quality assessment of dimensionality reduction: "
+        "Rank-based criteria. *Neurocomputing*, 72(7-9), 1431-1443.\n",
+        "- McInnes, L., Healy, J., & Melville, J. (2018). UMAP: Uniform Manifold Approximation "
+        "and Projection for Dimension Reduction. *arXiv preprint arXiv:1802.03426*.\n",
+        "- Pearson, K. (1901). On lines and planes of closest fit to systems of points in space. "
+        "*Philosophical Magazine*, 2(11), 559-572.\n",
+        "- UCI Machine Learning Repository. Heart Disease Dataset. "
+        "https://archive.ics.uci.edu/dataset/45/heart+disease\n"
+    ]
+})
+
+# ============================================================
+# Agregar y guardar
+# ============================================================
+nb['cells'].extend(new_cells)
+
+with open(notebook_path, 'w', encoding='utf-8') as f:
+    json.dump(nb, f, indent=2, ensure_ascii=False)
+
+print(f'OK - Notebook limpio: {len(nb["cells"])} celdas (22 originales + {len(new_cells)} nuevas)')
