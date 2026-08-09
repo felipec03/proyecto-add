@@ -1,0 +1,8 @@
+\babel@toc {spanish}{}\relax 
+\beamer@sectionintoc {1}{Limpieza y preprocesamiento}{3}{0}{1}
+\beamer@sectionintoc {2}{Reducción dimensional}{9}{0}{2}
+\beamer@sectionintoc {3}{Clustering}{14}{0}{3}
+\beamer@sectionintoc {4}{Evaluación y métricas}{18}{0}{4}
+\beamer@sectionintoc {5}{Visualizaciones}{21}{0}{5}
+\beamer@sectionintoc {6}{Interpretación crítica}{22}{0}{6}
+\beamer@sectionintoc {7}{Calidad}{24}{0}{7}
