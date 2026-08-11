@@ -82,8 +82,8 @@
   \end{center}
 
   \begin{itemize}
-    \item Correlaciones moderadas: ninguna supera $|r| > 0.6$, descartando multicolinealidad severa.
-    \item oldpeak y thalach son las más correlacionadas con el target.
+    \item Correlaciones moderadas: ninguna supera $|r| > 0.6$ (máx. 0.578 entre oldpeak y slope), descartando multicolinealidad severa.
+    \item \texttt{ca}, \texttt{thal} y \texttt{oldpeak} son las más correlacionadas con el target.
   \end{itemize}
 \end{frame}
 
@@ -110,7 +110,7 @@
 
   \begin{itemize}
     \item Método IQR ($Q_1 - 1.5\cdot IQR$, $Q_3 + 1.5\cdot IQR$) aplicado sobre 5 variables continuas.
-    \item \textbf{Resultado:} 35 filas eliminadas (combinadas). Shape final: 268 filas $\times$ 22 columnas (tras one-hot).
+    \item \textbf{Resultado:} 19 filas eliminadas (combinadas). Shape final: 284 filas $\times$ 22 columnas (tras one-hot).
     \item Las cajas verdes (``Después'') muestran distribuciones más limpias y compactas.
   \end{itemize}
 \end{frame}
@@ -130,7 +130,7 @@
       \midrule
       Carga inicial      & 303 $\times$ 14 & -- \\
       Imputación de nulos & 6 nulos & 0 nulos \\
-      Eliminación outliers & 303 filas & 268 filas \\
+      Eliminación outliers & 303 filas & 284 filas \\
       One-Hot Encoding    & 14 columnas & 22 columnas \\
       Escalamiento        & Escalas heterogéneas & $\mu=0, \sigma=1$ \\
       \bottomrule
@@ -150,8 +150,8 @@
   \end{center}
 
   \begin{itemize}
-    \item \textbf{Criterio de Kaiser} (eigenvalue $>1$): 7 componentes retenidos (59.1\% de varianza).
-    \item \textbf{Umbral 80\%:} Se requieren 12 de 22 componentes -- estructura mayoritariamente NO lineal.
+    \item \textbf{Criterio de Kaiser} (eigenvalue $>1$): 10 componentes retenidos (76.8\% de varianza acumulada).
+    \item \textbf{Umbral 80\%:} Se requieren 11 de 22 componentes -- estructura mayoritariamente NO lineal.
   \end{itemize}
 \end{frame}
 
@@ -161,9 +161,9 @@
   \end{center}
 
   \begin{itemize}
-    \item \textbf{PC1:} Dominada por oldpeak, thalach, y variables de dolor torácico (cp).
-    \item \textbf{PC2:} Pesos fuertes en colesterol (chol) y presión arterial (trestbps).
-    \item Las variables one-hot del thal y slope tienen contribuciones relevantes en PC3--PC5.
+    \item \textbf{PC1:} Dominada por thalach, slope y thal (y, en sentido inverso, por oldpeak, exang y cp\_4).
+    \item \textbf{PC2:} Pesos fuertes en restecg (alteraciones de reposo) y variables de thal.
+    \item Las variables one-hot del cp y slope tienen contribuciones relevantes en PC3--PC5.
   \end{itemize}
 \end{frame}
 
@@ -173,7 +173,7 @@
   \end{center}
 
   \begin{itemize}
-    \item Varianza explicada en 2D: $\approx 27\%$ (baja).
+    \item Varianza explicada en 2D: $\approx 29.5\%$ (PC1 + PC2).
     \item Las clases de severidad (0--4) no se separan linealmente en las dos primeras componentes.
     \item Justifica la exploración de métodos no lineales.
   \end{itemize}
@@ -206,16 +206,27 @@
 % ============================================================
 \section{Clustering}
 
-\begin{frame}{OPTICS: Motivación y configuración}
-  \textbf{¿Por qué OPTICS?}
+\begin{frame}{Clustering: dos enfoques complementarios}
+  \textbf{K-Means} (particional):
+  \begin{itemize}
+    \item Asume clusters esféricos, isotrópicos y de tamaño similar.
+    \item Requiere fijar $k$ a priori (método del codo + Silhouette).
+    \item Eficiente; ideal para verificar si los perfiles clínicos forman grupos compactos.
+  \end{itemize}
+
+  \vspace{0.3cm}
+  \textbf{OPTICS} (densidad):
   \begin{itemize}
     \item No requiere especificar $\varepsilon$ (a diferencia de DBSCAN).
-    \item Maneja clusters de densidad variable.
+    \item Maneja clusters de densidad variable y aísla ruido (perfiles atípicos).
     \item Produce un ordenamiento de puntos (reachability plot) que revela la estructura jerárquica de densidad.
   \end{itemize}
 
   \vspace{0.3cm}
-  \textbf{Configuración utilizada:}
+  Ambos se aplican sobre las dos proyecciones 2D: \textbf{PCA} (EX1, EX2) y \textbf{UMAP} (EX3, EX4).
+\end{frame}
+
+\begin{frame}{OPTICS: Configuración utilizada}
   \begin{itemize}
     \item \texttt{min\_samples = 5}
     \item \texttt{xi = 0.05} (método de extracción de clusters)
@@ -259,6 +270,61 @@
   \end{itemize}
 \end{frame}
 
+\begin{frame}{K-Means: selección de $k$ (método del codo)}
+  \begin{columns}
+    \column{0.5\textwidth}
+      \centering
+      \includegraphics[width=\textwidth]{../plots/4_mineria/kmeans_codo_pca.png}
+      \textbf{EX1: PCA + K-Means}
+
+    \column{0.5\textwidth}
+      \centering
+      \includegraphics[width=\textwidth]{../plots/4_mineria/kmeans_codo_umap.png}
+      \textbf{EX3: UMAP + K-Means}
+  \end{columns}
+
+  \vspace{0.2cm}
+  \begin{itemize}
+    \item El codo de la inercia sugiere $k \approx 4$--$5$ en ambas proyecciones.
+    \item Criterios complementarios: \textbf{Silhouette} y \textbf{Davies-Bouldin} confirman el rango ($k=4$ en PCA, $k=2$ en UMAP).
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{K-Means: gráfico Silhouette ($k$ óptimo)}
+  \begin{center}
+    \includegraphics[height=0.60\textheight]{../plots/4_mineria/kmeans_silhouette.png}
+  \end{center}
+
+  \begin{itemize}
+    \item \textbf{PCA ($k=4$):} Silhouette media 0.447, clusters de tamaño balanceado.
+    \item \textbf{UMAP ($k=2$):} Silhouette media 0.641, clusters muy compactos y separados (coherente con la estructura no lineal).
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{EX1: K-Means sobre PCA ($k=4$)}
+  \begin{center}
+    \includegraphics[height=0.60\textheight]{../plots/4_mineria/kmeans_pca.png}
+  \end{center}
+
+  \begin{itemize}
+    \item \textbf{Cluster 1} (jóvenes, 49 años, thalach alto): 92\% de pacientes sanos.
+    \item \textbf{Clusters 0 y 3} (oldpeak elevado, thalach bajo): mayor proporción de severidad 1--3.
+    \item Los centroides (X) se reconstruyeron al espacio original para interpretar cada perfil.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{EX3: K-Means sobre UMAP ($k=2$)}
+  \begin{center}
+    \includegraphics[height=0.60\textheight]{../plots/4_mineria/kmeans_umap.png}
+  \end{center}
+
+  \begin{itemize}
+    \item La partición en 2 grupos (sano / enfermo, hipótesis inicial del plan) es la más compacta de todas ($\text{Silhouette} = 0.641$).
+    \item Silhouette perfecta: los grupos no se traslapan en el espacio UMAP.
+    \item Los clusters no coinciden con los 5 niveles de severidad (ARI $\approx 0$): agrupan por perfil clínico, no por etiqueta.
+  \end{itemize}
+\end{frame}
+
 % ============================================================
 % SECCIÓN 4: EVALUACIÓN Y MÉTRICAS
 % ============================================================
@@ -293,22 +359,39 @@
   \textbf{Conclusión:} Para este dataset con estructura no lineal, UMAP es superior como paso previo al clustering.
 \end{frame}
 
-\begin{frame}{Resultados del clustering OPTICS}
+\begin{frame}{Resultados del clustering (EX1--EX4)}
   \begin{center}
-    \begin{tabular}{lccc}
+    \small
+    \begin{tabular}{lcccccc}
       \toprule
-      \textbf{Proyección} & \textbf{Clusters} & \textbf{Ruido (\%)} & \textbf{Silhouette} \\
+      \textbf{Modelo} & \textbf{k / cl.} & \textbf{Silhouette} & \textbf{Davies-Bouldin} & \textbf{Calinski-Harabasz} & \textbf{ARI} & \textbf{NMI} \\
       \midrule
-      PCA  & -- & -- & -- \\
-      UMAP & -- & -- & -- \\
+      K-Means PCA   & 4  & 0.447 & 0.788 & 338.2  & 0.177 & 0.219 \\
+      K-Means UMAP  & 2  & \textbf{0.641} & \textbf{0.378} & 440.8  & $-0.086$ & 0.064 \\
+      OPTICS PCA    & 20 & 0.546 & 0.568 & 506.9  & 0.038 & 0.223 \\
+      OPTICS UMAP   & 27 & 0.567 & 0.552 & \textbf{2194.1} & 0.036 & 0.207 \\
       \bottomrule
     \end{tabular}
   \end{center}
 
-  \vspace{0.3cm}
+  \vspace{0.2cm}
   \begin{itemize}
-    \item La proyección con mejor Silhouette determina cuál espacio es más adecuado para clustering.
-    \item Los resultados son coherentes con las métricas de preservación topológica.
+    \item \textbf{K-Means + UMAP} ($k=2$) maximiza Silhouette y minimiza Davies-Bouldin: clusters compactos y separados.
+    \item \textbf{OPTICS + UMAP} detecta 27 grupos densos (16.5\% de ruido) con la mayor Calinski-Harabasz.
+    \item El \textbf{ARI/NMI bajo} en todos los modelos indica que los clusters agrupan por perfil clínico y no por el nivel de severidad etiquetado.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Comparación visual de métricas}
+  \begin{center}
+    \includegraphics[height=0.55\textheight]{../plots/5_evaluacion/clustering_metrics.png}
+  \end{center}
+
+  \begin{itemize}
+    \item Valores normalizados (min-max por métrica) para comparar escalas distintas.
+    \item \textbf{K-Means UMAP} domina en las métricas intrínsecas de compactidad (Silhouette, Davies-Bouldin, Dunn).
+    \item \textbf{OPTICS UMAP} domina en Calinski-Harabasz (separación global) por su alta cantidad de clusters.
+    \item El ruido de OPTICS (39.1\% en PCA) degrada su utilidad en la proyección lineal.
   \end{itemize}
 \end{frame}
 
@@ -322,7 +405,7 @@
     \item \textbf{EDA:} Histogramas, boxplots y heatmap de correlación para entender la distribución y relaciones entre variables.
     \item \textbf{Preprocesamiento:} Comparativa antes/después de eliminación de outliers.
     \item \textbf{Reducción:} Scree plot, loadings, proyecciones 2D (PCA y UMAP).
-    \item \textbf{Clustering:} Visualización de clusters OPTICS sobre PCA y UMAP, reachability plots.
+    \item \textbf{Clustering:} Visualización de clusters K-Means (EX1, EX3) y OPTICS (EX2, EX4) sobre PCA y UMAP, reachability plots.
     \item \textbf{Evaluación:} Barras comparativas de métricas PCA vs. UMAP.
   \end{enumerate}
 
@@ -350,10 +433,10 @@
   \vspace{0.3cm}
   \textbf{Limitaciones:}
   \begin{itemize}
-    \item \textbf{Dimensionalidad:} Con solo $\approx 27\%$ de varianza en 2D, PCA pierde mucha información. Se usó 2D por visualización, no por optimalidad.
-    \item \textbf{Tamaño muestral:} 268 registros es limitado para clustering basado en densidad.
+    \item \textbf{Dimensionalidad:} Con solo $\approx 29.5\%$ de varianza en 2D, PCA pierde mucha información. Se usó 2D por visualización, no por optimalidad.
+    \item \textbf{Tamaño muestral:} 284 registros es limitado para clustering basado en densidad.
     \item \textbf{UMAP es estocástico:} Los resultados pueden variar entre ejecuciones si no se fija \texttt{random\_state}.
-    \item \textbf{Target no usado en clustering:} La evaluación se hace exclusivamente con métricas intrínsecas (Silhouette). No hay validación externa contra el ground truth de severidad.
+    \item \textbf{Validación externa débil:} ARI/NMI bajos en todos los modelos: los clusters no replican las etiquetas de severidad (0--4), que además no definen clases ``naturales'' bien separadas.
   \end{itemize}
 \end{frame}
 
@@ -362,15 +445,16 @@
     \item La estructura no lineal del dataset (requiere 12 PCs para el 80\% de varianza) justifica plenamente el uso de UMAP.
     \item El preprocesamiento (outliers + escalado) tiene un impacto directo en la calidad de las proyecciones.
     \item Las métricas de preservación topológica son complementarias: una sola métrica no basta para decidir entre técnicas de reducción.
-    \item OPTICS sobre UMAP produce clusters más interpretables que sobre PCA para este dataset.
+    \item \textbf{K-Means} y \textbf{OPTICS} sobre UMAP superan a sus versiones sobre PCA: el espacio no lineal revela grupos más compactos.
+    \item La baja concordancia con el target (ARI/NMI) sugiere que la severidad 0--4 no forma grupos geométricamente ``naturales''.
   \end{itemize}
 
-  \vspace{0.5cm}
+  \vspace{0.3cm}
   \begin{block}{Trabajo futuro}
     \begin{itemize}
       \item Explorar $n=3$ componentes en PCA/UMAP para reducir pérdida de información.
-      \item Incorporar validación externa con el target (ARI, NMI) como sanity check.
-      \item Probar t-SNE como alternativa no lineal y comparar con UMAP.
+      \item Refinar la validación externa binaria (sano vs. enfermo) en lugar de los 5 niveles de severidad.
+      \item Probar t-SNE y GMM (modelos de mezcla) como alternativas a UMAP y K-Means.
     \end{itemize}
   \end{block}
 \end{frame}
@@ -384,7 +468,7 @@
   \textbf{Calidad de los datos:}
   \begin{itemize}
     \item Solo 6 valores nulos en 303 registros (1.98\%) -- dataset de alta completitud.
-    \item 35 outliers detectados y eliminados (11.5\% de las filas) con criterio IQR justificado.
+    \item 19 outliers detectados y eliminados (6.3\% de las filas) con criterio IQR justificado.
     \item Estandarización verificada ($\mu \approx 0$, $\sigma \approx 1$).
   \end{itemize}
 
@@ -399,8 +483,9 @@
   \vspace{0.3cm}
   \textbf{Calidad del clustering:}
   \begin{itemize}
-    \item OPTICS configurado con parámetros estándar y documentados.
-    \item Silhouette reportada (sin ruido). Reachability plots permiten inspección visual de la estructura de clusters.
+    \item K-Means: selección de $k$ documentada con método del codo, Silhouette, Davies-Bouldin y Calinski-Harabasz.
+    \item OPTICS configurado con parámetros estándar y documentados; Silhouette reportada sin ruido.
+    \item Evaluación cruzada con 6 métricas (Silhouette, DB, CH, ARI, NMI, Dunn) y centroides interpretados en unidades clínicas.
   \end{itemize}
 \end{frame}
 

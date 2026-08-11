@@ -685,6 +685,323 @@ new_cells.append({
     ]
 })
 
+# 49 MD: Clustering particional K-Means
+new_cells.append({
+    "cell_type": "markdown", "metadata": {"id": "kmeans_md"},
+    "source": [
+        "# Clustering particional: K-Means\n",
+        "\n",
+        "**K-Means** (Lloyd, 1982; MacQueen, 1967; Hartigan & Wong, 1979) es un algoritmo de particionamiento "
+        "que minimiza iterativamente la **inercia** (suma de distancias euclidianas al cuadrado de cada punto a su "
+        "centroide). A diferencia de OPTICS, exige fijar el numero de clusters `k` a priori. Aqui se selecciona con "
+        "dos criterios complementarios:\n",
+        "\n",
+        "- **Metodo del codo**: el `k` a partir del cual la inercia deja de decrecer significativamente.\n",
+        "- **Silhouette Score** (Rousseeuw, 1987): el `k` que maximiza la cohesion y separacion media de los clusters.\n",
+        "\n",
+        "## Experimentos del plan experimental\n",
+        "\n",
+        "| Exp | Reduccion | Clustering | Se implementa en |\n",
+        "|---|---|---|---|\n",
+        "| EX1 | PCA | K-Means | seleccion de `k` y clusters sobre `X_pca_2d` |\n",
+        "| EX3 | UMAP | K-Means | seleccion de `k` y clusters sobre `X_umap` |\n",
+        "\n",
+        "## Metricas de evaluacion\n",
+        "\n",
+        "| Metrica | Sentido optimo | Que mide |\n",
+        "|---|---|---|\n",
+        "| **Silhouette** (Rousseeuw, 1987) | Mayor | Cohesion y separacion media de los clusters |\n",
+        "| **Davies-Bouldin** (1979) | Menor | Razon dispersion intra-cluster vs. distancia entre centroides |\n",
+        "| **Calinski-Harabasz** (1974) | Mayor | Razon dispersion entre grupos / dispersion intra-grupo |\n",
+        "| **ARI** (Hubert & Arabie, 1985) | Mayor | Concordancia con el ground truth `y` (severidad 0-4), ajustada al azar |\n",
+        "| **NMI** (Vinh et al., 2010) | Mayor | Informacion mutua normalizada con el ground truth |\n",
+        "| **Dunn** (1974) | Mayor | Minima distancia entre clusters / maximo diametro interno |\n",
+        "\n",
+        "> Referencias completas al final del notebook.\n"
+    ]
+})
+
+# 50 CD: Helpers K-Means (dunn, grid, plots de seleccion de k)
+new_cells.append({
+    "cell_type": "code", "metadata": {"id": "kmeans_helpers"},
+    "source": [
+        "from sklearn.cluster import KMeans\n",
+        "from sklearn.metrics import (silhouette_score, silhouette_samples,\n",
+        "                             davies_bouldin_score, calinski_harabasz_score,\n",
+        "                             adjusted_rand_score, normalized_mutual_info_score)\n",
+        "from scipy.spatial.distance import pdist, squareform\n",
+        "\n",
+        "\n",
+        "def dunn_index(X, labels):\n",
+        "    \"\"\"Dunn index: min distancia entre clusters / max diametro interno.\"\"\"\n",
+        "    unique = np.unique(labels)\n",
+        "    if len(unique) < 2:\n",
+        "        return np.nan\n",
+        "    dist = squareform(pdist(X))\n",
+        "    max_intra, min_inter = 0.0, np.inf\n",
+        "    for a in unique:\n",
+        "        mask_a = labels == a\n",
+        "        if mask_a.sum() > 1:\n",
+        "            max_intra = max(max_intra, np.max(dist[np.ix_(mask_a, mask_a)]))\n",
+        "        for b in unique:\n",
+        "            if a < b:\n",
+        "                min_inter = min(min_inter, np.min(dist[np.ix_(mask_a, labels == b)]))\n",
+        "    return min_inter / max_intra if max_intra > 0 else np.nan\n",
+        "\n",
+        "\n",
+        "def grid_kmeans(X, k_range=range(2, 13), seed=42):\n",
+        "    filas, modelos = [], {}\n",
+        "    for k in k_range:\n",
+        "        km = KMeans(n_clusters=k, random_state=seed, n_init=10, max_iter=1000)\n",
+        "        km.fit(X)\n",
+        "        modelos[k] = km\n",
+        "        filas.append({\n",
+        "            'k': k,\n",
+        "            'Inercia': km.inertia_,\n",
+        "            'Silhouette': silhouette_score(X, km.labels_),\n",
+        "            'Davies-Bouldin': davies_bouldin_score(X, km.labels_),\n",
+        "            'Calinski-Harabasz': calinski_harabasz_score(X, km.labels_),\n",
+        "            'ARI': adjusted_rand_score(np.asarray(y), km.labels_),\n",
+        "            'NMI': normalized_mutual_info_score(np.asarray(y), km.labels_),\n",
+        "            'Dunn': dunn_index(X, km.labels_),\n",
+        "        })\n",
+        "    return pd.DataFrame(filas).set_index('k'), modelos\n",
+        "\n",
+        "\n",
+        "def plot_seleccion_k(grid, titulo, filename):\n",
+        "    fig, axes = plt.subplots(2, 2, figsize=(13, 9))\n",
+        "    paneles = [\n",
+        "        (axes[0, 0], 'Inercia', 'o-', 'Codo (menor pendiente)'),\n",
+        "        (axes[0, 1], 'Silhouette', 'o-', 'Maximo'),\n",
+        "        (axes[1, 0], 'Davies-Bouldin', 's-', 'Minimo'),\n",
+        "        (axes[1, 1], 'Calinski-Harabasz', 'D-', 'Maximo'),\n",
+        "    ]\n",
+        "    for ax, col, marker, crit in paneles:\n",
+        "        ax.plot(grid.index, grid[col], marker, color='steelblue', linewidth=2, markersize=7)\n",
+        "        ax.set_xlabel('k')\n",
+        "        ax.set_ylabel('Inercia (WCSS)' if col == 'Inercia' else col)\n",
+        "        ax.set_title(f'{col} por k  (criterio: {crit})')\n",
+        "        ax.grid(alpha=0.3)\n",
+        "        ax.set_xticks(list(grid.index))\n",
+        "    fig.suptitle(titulo, fontsize=13, fontweight='bold')\n",
+        "    plt.tight_layout()\n",
+        "    plt.savefig(filename, dpi=150)\n",
+        "    plt.show()\n"
+    ], "execution_count": None, "outputs": []
+})
+
+# 51 CD: Grid de k para PCA y UMAP (metodo del codo + metricas)
+new_cells.append({
+    "cell_type": "code", "metadata": {"id": "kmeans_grid"},
+    "source": [
+        "grid_pca, modelos_pca = grid_kmeans(X_pca_2d)\n",
+        "plot_seleccion_k(grid_pca, 'EX1: Seleccion de k - K-Means sobre PCA', 'plots/4_mineria/kmeans_codo_pca.png')\n",
+        "print('=== EX1: PCA + K-Means, metricas por k ===')\n",
+        "print(grid_pca.round(3))\n",
+        "\n",
+        "if umap_ok:\n",
+        "    grid_umap, modelos_umap = grid_kmeans(X_umap)\n",
+        "    plot_seleccion_k(grid_umap, 'EX3: Seleccion de k - K-Means sobre UMAP', 'plots/4_mineria/kmeans_codo_umap.png')\n",
+        "    print('\\n=== EX3: UMAP + K-Means, metricas por k ===')\n",
+        "    print(grid_umap.round(3))\n",
+        "else:\n",
+        "    print('UMAP no disponible: EX3 omitido.')\n"
+    ], "execution_count": None, "outputs": []
+})
+
+# 52 CD: k optimo y grafico Silhouette
+new_cells.append({
+    "cell_type": "code", "metadata": {"id": "kmeans_kopt"},
+    "source": [
+        "k_opt_pca = grid_pca['Silhouette'].idxmax()\n",
+        "print(f'k optimo en PCA segun Silhouette: {k_opt_pca}')\n",
+        "print(f'k optimo en PCA segun Calinski-Harabasz: {grid_pca[\"Calinski-Harabasz\"].idxmax()}')\n",
+        "print(f'k optimo en PCA segun Davies-Bouldin: {grid_pca[\"Davies-Bouldin\"].idxmin()}')\n",
+        "print('El metodo del codo se aprecia en el panel de Inercia del grafico anterior.')\n",
+        "\n",
+        "if umap_ok:\n",
+        "    k_opt_umap = grid_umap['Silhouette'].idxmax()\n",
+        "    print(f'k optimo en UMAP segun Silhouette: {k_opt_umap}')\n",
+        "    print(f'k optimo en UMAP segun Calinski-Harabasz: {grid_umap[\"Calinski-Harabasz\"].idxmax()}')\n",
+        "    print(f'k optimo en UMAP segun Davies-Bouldin: {grid_umap[\"Davies-Bouldin\"].idxmin()}')\n",
+        "    pares = [(k_opt_pca, modelos_pca[k_opt_pca], X_pca_2d, 'PCA'),\n",
+        "             (k_opt_umap, modelos_umap[k_opt_umap], X_umap, 'UMAP')]\n",
+        "else:\n",
+        "    k_opt_umap = None\n",
+        "    print('UMAP no disponible: EX3 omitido.')\n",
+        "    pares = [(k_opt_pca, modelos_pca[k_opt_pca], X_pca_2d, 'PCA')]\n",
+        "\n",
+        "fig, axes = plt.subplots(1, len(pares), figsize=(7 * len(pares), 6), squeeze=False)\n",
+        "axes = axes.flatten()\n",
+        "for ax, (k, km, X, nombre) in zip(axes, pares):\n",
+        "    sil = silhouette_samples(X, km.labels_)\n",
+        "    y_lower = 0\n",
+        "    for i in range(k):\n",
+        "        yi = np.sort(sil[km.labels_ == i])\n",
+        "        ax.fill_betweenx(np.arange(len(yi)), y_lower, y_lower + len(yi), alpha=0.6)\n",
+        "        ax.text(-0.05, y_lower + len(yi) / 2, str(i), fontsize=8)\n",
+        "        y_lower += len(yi)\n",
+        "    ax.axvline(np.mean(sil), color='red', linestyle='--', label=f'Media={np.mean(sil):.3f}')\n",
+        "    ax.set_title(f'Grafico Silhouette {nombre} (k={k})')\n",
+        "    ax.set_xlabel('Silhouette')\n",
+        "    ax.set_ylabel('Cluster')\n",
+        "    ax.grid(alpha=0.3)\n",
+        "    ax.legend()\n",
+        "plt.tight_layout()\n",
+        "plt.savefig('plots/4_mineria/kmeans_silhouette.png', dpi=150)\n",
+        "plt.show()\n"
+    ], "execution_count": None, "outputs": []
+})
+
+# 53 CD: EX1 y EX3 - clusters finales
+new_cells.append({
+    "cell_type": "code", "metadata": {"id": "kmeans_clusters"},
+    "source": [
+        "km_pca = modelos_pca[k_opt_pca]\n",
+        "km_umap = modelos_umap[k_opt_umap] if umap_ok else None\n",
+        "\n",
+        "fig, ax = plt.subplots(figsize=(10, 7))\n",
+        "ax.scatter(X_pca_2d[:, 0], X_pca_2d[:, 1], c=km_pca.labels_, cmap='tab10',\n",
+        "           alpha=0.8, edgecolors='black', linewidth=0.3, s=35)\n",
+        "ax.scatter(km_pca.cluster_centers_[:, 0], km_pca.cluster_centers_[:, 1],\n",
+        "           marker='X', c='black', s=140, edgecolors='white', linewidth=1, label='Centroides')\n",
+        "ax.set_xlabel(f'PC1 ({varianza_individual[0]*100:.1f}%)')\n",
+        "ax.set_ylabel(f'PC2 ({varianza_individual[1]*100:.1f}%)')\n",
+        "ax.set_title(f'EX1: K-Means sobre PCA (k={k_opt_pca})')\n",
+        "ax.legend()\n",
+        "ax.grid(alpha=0.3)\n",
+        "plt.tight_layout()\n",
+        "plt.savefig('plots/4_mineria/kmeans_pca.png', dpi=150)\n",
+        "plt.show()\n",
+        "\n",
+        "if umap_ok:\n",
+        "    fig, ax = plt.subplots(figsize=(10, 7))\n",
+        "    ax.scatter(X_umap[:, 0], X_umap[:, 1], c=km_umap.labels_, cmap='tab10',\n",
+        "               alpha=0.8, edgecolors='black', linewidth=0.3, s=35)\n",
+        "    ax.scatter(km_umap.cluster_centers_[:, 0], km_umap.cluster_centers_[:, 1],\n",
+        "               marker='X', c='black', s=140, edgecolors='white', linewidth=1, label='Centroides')\n",
+        "    ax.set_xlabel('UMAP Dim 1')\n",
+        "    ax.set_ylabel('UMAP Dim 2')\n",
+        "    ax.set_title(f'EX3: K-Means sobre UMAP (k={k_opt_umap})')\n",
+        "    ax.legend()\n",
+        "    ax.grid(alpha=0.3)\n",
+        "    plt.tight_layout()\n",
+        "    plt.savefig('plots/4_mineria/kmeans_umap.png', dpi=150)\n",
+        "    plt.show()\n"
+    ], "execution_count": None, "outputs": []
+})
+
+# 54 CD: Interpretacion de centroides (EX1)
+new_cells.append({
+    "cell_type": "code", "metadata": {"id": "kmeans_centroides"},
+    "source": [
+        "print('=== INTERPRETACION DE CENTROIDES (EX1: PCA + K-Means) ===')\n",
+        "print('Los centroides se reconstruyen al espacio original (inversa de PCA + inversa del scaler).\\n')\n",
+        "\n",
+        "centroides_pad = np.zeros((k_opt_pca, X_pca.shape[1]))\n",
+        "centroides_pad[:, :2] = km_pca.cluster_centers_\n",
+        "centroides_orig = scaler.inverse_transform(pca.inverse_transform(centroides_pad))\n",
+        "df_centroides = pd.DataFrame(centroides_orig, columns=X_pre_escalado.columns)\n",
+        "df_centroides_z = pd.DataFrame(pca.inverse_transform(centroides_pad),\n",
+        "                               columns=X_scaled.columns)\n",
+        "\n",
+        "continuas_orig = ['age', 'trestbps', 'chol', 'thalach', 'oldpeak']\n",
+        "perfil_cluster = X_pre_escalado.copy()\n",
+        "perfil_cluster['cluster'] = km_pca.labels_\n",
+        "\n",
+        "print('--- Perfil medio por cluster (variables continuas, unidades originales) ---')\n",
+        "print(perfil_cluster.groupby('cluster')[continuas_orig].mean().round(2))\n",
+        "\n",
+        "print('\\n--- Distribucion de severidad (target) por cluster ---')\n",
+        "tabla_sev = pd.crosstab(km_pca.labels_, y)\n",
+        "tabla_sev['total'] = tabla_sev.sum(axis=1)\n",
+        "print(tabla_sev)\n",
+        "\n",
+        "print('\\n--- Centroides reconstruidos (unidades originales) ---')\n",
+        "print(df_centroides.round(2))\n",
+        "\n",
+        "print('\\n--- Top 5 variables por centroide (|z-score|, mayor contribucion) ---')\n",
+        "for i in range(k_opt_pca):\n",
+        "    top = df_centroides_z.iloc[i].abs().nlargest(5)\n",
+        "    print(f'  Cluster {i}: ' + ', '.join(f'{v} ({top[v]:.2f})' for v in top.index))\n"
+    ], "execution_count": None, "outputs": []
+})
+
+# 55 CD: Metricas adicionales para OPTICS + comparacion final
+new_cells.append({
+    "cell_type": "code", "metadata": {"id": "kmeans_compare"},
+    "source": [
+        "def extra_metrics(X, labels, y_true):\n",
+        "    mask = labels != -1\n",
+        "    res = {}\n",
+        "    if len(np.unique(labels[mask])) >= 2:\n",
+        "        res['Davies-Bouldin'] = davies_bouldin_score(X[mask], labels[mask])\n",
+        "        res['Calinski-Harabasz'] = calinski_harabasz_score(X[mask], labels[mask])\n",
+        "        res['ARI'] = adjusted_rand_score(np.asarray(y_true)[mask], labels[mask])\n",
+        "        res['NMI'] = normalized_mutual_info_score(np.asarray(y_true)[mask], labels[mask])\n",
+        "        res['Dunn'] = dunn_index(X[mask], labels[mask])\n",
+        "    return res\n",
+        "\n",
+        "m_optics_pca = extra_metrics(X_pca_2d, labels_pca, y)\n",
+        "print('=== OPTICS PCA: metricas adicionales (sin ruido) ===')\n",
+        "print(pd.Series(m_optics_pca).round(3))\n",
+        "\n",
+        "filas_comp = {\n",
+        "    'K-Means PCA': grid_pca.loc[k_opt_pca].to_dict(),\n",
+        "    'OPTICS PCA': {**resumen_pca, **m_optics_pca},\n",
+        "}\n",
+        "if umap_ok:\n",
+        "    m_optics_umap = extra_metrics(X_umap, labels_umap, y)\n",
+        "    print('\\n=== OPTICS UMAP: metricas adicionales (sin ruido) ===')\n",
+        "    print(pd.Series(m_optics_umap).round(3))\n",
+        "    filas_comp['K-Means UMAP'] = grid_umap.loc[k_opt_umap].to_dict()\n",
+        "    filas_comp['OPTICS UMAP'] = {**resumen_umap, **m_optics_umap}\n",
+        "\n",
+        "df_comp = pd.DataFrame(filas_comp).T\n",
+        "print('\\n=== COMPARACION FINAL: K-Means vs OPTICS (PCA vs UMAP) ===')\n",
+        "print(df_comp.round(3))\n",
+        "\n",
+        "metricas_grafico = ['Silhouette', 'Davies-Bouldin', 'Calinski-Harabasz', 'ARI', 'NMI', 'Dunn']\n",
+        "fig, ax = plt.subplots(figsize=(13, 6))\n",
+        "x = np.arange(len(metricas_grafico))\n",
+        "width = 0.2\n",
+        "colores = ['steelblue', 'darkorange', 'mediumseagreen', 'indianred']\n",
+        "valores_brutos = {m: [filas_comp[mod].get(m, np.nan) for mod in filas_comp] for m in metricas_grafico}\n",
+        "for i, modelo in enumerate(filas_comp):\n",
+        "    vals = []\n",
+        "    for m in metricas_grafico:\n",
+        "        v = valores_brutos[m][i]\n",
+        "        rng = np.nanmax(valores_brutos[m]) - np.nanmin(valores_brutos[m])\n",
+        "        vals.append((v - np.nanmin(valores_brutos[m])) / rng if rng > 0 and np.isfinite(v) else np.nan)\n",
+        "    ax.bar(x + (i - 1.5) * width, vals, width, label=modelo, color=colores[i], alpha=0.85)\n",
+        "ax.set_xticks(x)\n",
+        "ax.set_xticklabels(metricas_grafico)\n",
+        "ax.set_ylim(0, 1.15)\n",
+        "ax.set_ylabel('Valor normalizado (min-max por metrica)')\n",
+        "ax.set_title('Comparacion de metricas: K-Means vs OPTICS (EX1-EX4)', fontsize=13, fontweight='bold')\n",
+        "ax.legend(fontsize=9)\n",
+        "ax.grid(axis='y', alpha=0.3)\n",
+        "plt.tight_layout()\n",
+        "plt.savefig('plots/5_evaluacion/clustering_metrics.png', dpi=150)\n",
+        "plt.show()\n"
+    ], "execution_count": None, "outputs": []
+})
+
+# 56 MD: Interpretacion del clustering K-Means (a completar)
+new_cells.append({
+    "cell_type": "markdown", "metadata": {"id": "kmeans_interp_md"},
+    "source": [
+        "## Interpretacion del clustering K-Means\n",
+        "\n",
+        "Completar con los valores reales de la ejecucion:\n",
+        "\n",
+        "- **Seleccion de k**: el metodo del codo indica [completar], mientras que Silhouette / Calinski-Harabasz / Davies-Bouldin sugieren [completar].\n",
+        "- **EX1 (PCA + K-Means)**: perfil clinico de cada cluster (edad, colesterol, presion, thalach, oldpeak) y relacion con la severidad del target.\n",
+        "- **EX3 (UMAP + K-Means)**: comparacion con EX1; UMAP deberia producir clusters mas compactos y separados.\n",
+        "- **Comparacion K-Means vs OPTICS**: K-Means asume clusters esfericos y de tamano similar; OPTICS detecta densidades variables y aísla ruido. Analizar Silhouette, Davies-Bouldin, Calinski-Harabasz, ARI y NMI.\n"
+    ]
+})
+
 # 48 MD: Referencias (seccion final)
 new_cells.append({
     "cell_type": "markdown", "metadata": {"id": "refs_md"},
@@ -692,23 +1009,37 @@ new_cells.append({
         "# Referencias\n",
         "\n",
         "- Ankerst, M., Breunig, M. M., Kriegel, H.-P., & Sander, J. (1999). OPTICS: Ordering points to identify the clustering structure. *ACM SIGMOD Record*, 28(2), 49-60.\n",
+        "- Calinski, T., & Harabasz, J. (1974). A dendrite method for cluster analysis. *Communications in Statistics*, 3(1), 1-27.\n",
         "- Cattell, R. B. (1966). The scree test for the number of factors. "
         "*Multivariate Behavioral Research*, 1(2), 245-276.\n",
+        "- Davies, D. L., & Bouldin, D. W. (1979). A cluster separation measure. "
+        "*IEEE Transactions on Pattern Analysis and Machine Intelligence*, PAMI-1(2), 224-227.\n",
         "- Detrano, R., Janosi, A., et al. (1989). International application of a new probability algorithm "
         "for the diagnosis of coronary artery disease. *American Journal of Cardiology*, 64(5), 304-310.\n",
+        "- Dunn, J. C. (1974). Well-separated clusters and optimal fuzzy partitions. *Journal of Cybernetics*, 4(1), 95-104.\n",
+        "- Hartigan, J. A., & Wong, M. A. (1979). Algorithm AS 136: A k-means clustering algorithm. "
+        "*Applied Statistics*, 28(1), 100-108.\n",
         "- Hotelling, H. (1933). Analysis of a complex of statistical variables into principal components. "
         "*Journal of Educational Psychology*, 24(6), 417-441.\n",
+        "- Hubert, L., & Arabie, P. (1985). Comparing partitions. *Journal of Classification*, 2(1), 193-218.\n",
         "- Jolliffe, I. T. (2002). *Principal Component Analysis* (2nd ed.). Springer.\n",
         "- Kaiser, H. F. (1960). The application of electronic computers to factor analysis. "
         "*Educational and Psychological Measurement*, 20(1), 141-151.\n",
         "- Lee, J. A., & Verleysen, M. (2009). Quality assessment of dimensionality reduction: "
         "Rank-based criteria. *Neurocomputing*, 72(7-9), 1431-1443.\n",
+        "- Lloyd, S. P. (1982). Least squares quantization in PCM. *IEEE Transactions on Information Theory*, 28(2), 129-137.\n",
+        "- MacQueen, J. (1967). Some methods for classification and analysis of multivariate observations. "
+        "*Proceedings of the 5th Berkeley Symposium on Mathematical Statistics and Probability*, 1, 281-297.\n",
         "- McInnes, L., Healy, J., & Melville, J. (2018). UMAP: Uniform Manifold Approximation "
         "and Projection for Dimension Reduction. *arXiv preprint arXiv:1802.03426*.\n",
         "- Pearson, K. (1901). On lines and planes of closest fit to systems of points in space. "
         "*Philosophical Magazine*, 2(11), 559-572.\n",
+        "- Rousseeuw, P. J. (1987). Silhouettes: A graphical aid to the interpretation and validation "
+        "of cluster analysis. *Journal of Computational and Applied Mathematics*, 20, 53-65.\n",
         "- UCI Machine Learning Repository. Heart Disease Dataset. "
-        "https://archive.ics.uci.edu/dataset/45/heart+disease\n"
+        "https://archive.ics.uci.edu/dataset/45/heart+disease\n",
+        "- Vinh, N. X., Epps, J., & Bailey, J. (2010). Information theoretic measures for clusterings comparison: "
+        "Variants, properties, normalization and correction for chance. *Journal of Machine Learning Research*, 11, 2837-2854.\n"
     ]
 })
 
