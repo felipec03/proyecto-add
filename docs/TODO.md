@@ -38,6 +38,7 @@ Entrega: **13 de agosto 2026, 12:00 hrs**
 | ALTA | Agregar métricas Davies-Bouldin y Calinski-Harabasz a slides de evaluación | Pendiente |
 | ALTA | Re-compilar `presentacion.tex` para generar PDF actualizado | Pendiente |
 | BAJA | Pulir formato, ortografía, consistencia visual | Pendiente |
+| BAJA | Crear changelog histórico de prompts | Listo (`docs/CHANGELOG.md`) |
 
 ---
 
