@@ -22,7 +22,13 @@ proyecto-add/
 │   └── 5_evaluacion/
 ├── scripts/                        # Scripts auxiliares (EDA, preprocesamiento)
 ├── presentacion/                   # Presentación LaTeX (beamer)
-├── docs/                           # Documentación y planificación
+├── docs/                           # Documentación, planning y referencia
+│   ├── TODO.md
+│   ├── CHANGELOG.md
+│   ├── Proyecto-PostParo.pdf
+│   ├── Planificacion_Proyecto_ADD_DEFINITIVA.pdf
+│   ├── FECHASEVALUACIONES-POST-PARO-ANALISISDATOS.pdf
+│   └── Apuntes_completos_IME.pdf
 └── Planificacion/                  # Versiones históricas de planificación
 ```
 
