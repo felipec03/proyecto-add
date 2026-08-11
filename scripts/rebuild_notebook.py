@@ -1044,6 +1044,23 @@ new_cells.append({
 })
 
 # ============================================================
+# Reordenar celdas: K-Means antes que OPTICS
+# (la comparacion final K-Means vs OPTICS depende de ambas secciones)
+# ============================================================
+orden_ids = [
+    'cod_md', 'cod_cd', 'esc_md', 'esc_cd', 'pca_md', 'pca_var_cd', 'pca_scree_cd',
+    'pca_load_cd', 'pca_2d_cd', 'umap_md', 'umap_install_cd', 'umap_fit_cd',
+    'umap_plot_cd', 'umap_params_cd', 'metrics_md', 'metrics_calc_cd', 'metrics_bar_cd',
+    'metrics_interp_md',
+    'kmeans_md', 'kmeans_helpers', 'kmeans_grid', 'kmeans_kopt', 'kmeans_clusters',
+    'kmeans_centroides', 'kmeans_interp_md',
+    'optics_md', 'optics_helpers_cd', 'optics_pca_cd', 'optics_umap_cd',
+    'optics_reach_cd', 'optics_cmp_cd', 'optics_interp_md',
+    'kmeans_compare', 'refs_md',
+]
+new_cells.sort(key=lambda c: orden_ids.index(c['metadata']['id']))
+
+# ============================================================
 # Agregar y guardar
 # ============================================================
 nb['cells'].extend(new_cells)
