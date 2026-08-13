@@ -396,9 +396,12 @@ print("[OK] pca_vs_umap_metrics.png")
 # ============================================================
 # 6. CLUSTERING BASADO EN DENSIDAD: OPTICS
 # (reemplaza a DBSCAN: no requiere eps, densidad variable)
+# 2 tandas: EX2/EX4 con min_samples=5, EX2.1/EX4.1 con min_samples=15
 # ============================================================
 print("\n" + "=" * 60)
-print("  6. CLUSTERING OPTICS (EX2 = PCA + OPTICS, EX4 = UMAP + OPTICS)")
+print("  6. CLUSTERING OPTICS - 2 TANDAS")
+print("     Tanda 1: EX2 (PCA) y EX4 (UMAP) con min_samples=5")
+print("     Tanda 2: EX2.1 (PCA) y EX4.1 (UMAP) con min_samples=15")
 print("=" * 60)
 
 
@@ -454,65 +457,97 @@ def plot_clusters(X, labels, titulo, filename):
     print(f"[OK] {filename}")
 
 
+# TANDA 1: min_samples=5
+print('\n--- TANDA 1: min_samples=5 ---')
+
 # EX2: PCA + OPTICS
-optics_pca, labels_pca, resumen_pca = run_optics(X_pca_2d, 'PCA')
+optics_pca, labels_pca, resumen_pca = run_optics(X_pca_2d, 'EX2 (PCA)', min_samples=5)
 plot_clusters(
     X_pca_2d, labels_pca,
-    f'OPTICS sobre PCA (PC1 {varianza_individual[0]*100:.1f}%, PC2 {varianza_individual[1]*100:.1f}%)',
+    f'EX2: OPTICS sobre PCA, min_samples=5 (PC1 {varianza_individual[0]*100:.1f}%, PC2 {varianza_individual[1]*100:.1f}%)',
     'plots/4_mineria/optics_pca.png'
 )
 
 # EX4: UMAP + OPTICS
 if umap_ok:
-    optics_umap, labels_umap, resumen_umap = run_optics(X_umap, 'UMAP')
+    optics_umap, labels_umap, resumen_umap = run_optics(X_umap, 'EX4 (UMAP)', min_samples=5)
     plot_clusters(
         X_umap, labels_umap,
-        'OPTICS sobre UMAP (n_neighbors=15, min_dist=0.1)',
+        'EX4: OPTICS sobre UMAP, min_samples=5 (n_neighbors=15, min_dist=0.1)',
         'plots/4_mineria/optics_umap.png'
     )
 else:
+    optics_umap = labels_umap = resumen_umap = None
     print('UMAP no disponible.')
 
-# Reachability plots
+# TANDA 2: min_samples=15
+print('\n--- TANDA 2: min_samples=15 ---')
+
+# EX2.1: PCA + OPTICS
+optics_pca2, labels_pca2, resumen_pca2 = run_optics(X_pca_2d, 'EX2.1 (PCA)', min_samples=15)
+plot_clusters(
+    X_pca_2d, labels_pca2,
+    f'EX2.1: OPTICS sobre PCA, min_samples=15 (PC1 {varianza_individual[0]*100:.1f}%, PC2 {varianza_individual[1]*100:.1f}%)',
+    'plots/4_mineria/optics_pca_ms15.png'
+)
+
+# EX4.1: UMAP + OPTICS
 if umap_ok:
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
-    for ax, optics, nombre in zip(axes, [optics_pca, optics_umap], ['PCA', 'UMAP']):
+    optics_umap2, labels_umap2, resumen_umap2 = run_optics(X_umap, 'EX4.1 (UMAP)', min_samples=15)
+    plot_clusters(
+        X_umap, labels_umap2,
+        'EX4.1: OPTICS sobre UMAP, min_samples=15 (n_neighbors=15, min_dist=0.1)',
+        'plots/4_mineria/optics_umap_ms15.png'
+    )
+else:
+    optics_umap2 = labels_umap2 = resumen_umap2 = None
+
+# Reachability plots (2x2: PCA/UMAP x ms=5/ms=15)
+fig, axes = plt.subplots(2, 2, figsize=(14, 9))
+for fila, ms, o_pca, o_umap in [
+    (0, 'min_samples=5', optics_pca, optics_umap),
+    (1, 'min_samples=15', optics_pca2, optics_umap2),
+]:
+    for ax, optics, nombre in [(axes[fila, 0], o_pca, 'PCA'), (axes[fila, 1], o_umap, 'UMAP')]:
+        if optics is None:
+            ax.axis('off')
+            continue
         ord_ = optics.ordering_
         ax.plot(np.arange(len(ord_)), optics.reachability_[ord_], linewidth=0.7, color='steelblue')
-        ax.set_title(f'Reachability Plot - {nombre}')
+        ax.set_title(f'Reachability Plot - {nombre} ({ms})')
         ax.set_xlabel('Orden de puntos')
         ax.set_ylabel('Distancia de alcance')
         ax.grid(alpha=0.3)
-    plt.suptitle('OPTICS: Distancia de Alcance (xi=0.05)', fontsize=13, fontweight='bold')
-    plt.tight_layout()
-    plt.savefig(PLOTS / '4_mineria' / 'optics_reachability.png', dpi=150)
-    plt.close(fig)
-else:
-    ord_ = optics_pca.ordering_
-    plt.figure(figsize=(8, 5))
-    plt.plot(np.arange(len(ord_)), optics_pca.reachability_[ord_], linewidth=0.7, color='steelblue')
-    plt.title('Reachability Plot - PCA')
-    plt.xlabel('Orden de puntos')
-    plt.ylabel('Distancia de alcance')
-    plt.grid(alpha=0.3)
-    plt.tight_layout()
-    plt.savefig(PLOTS / '4_mineria' / 'optics_reachability.png', dpi=150)
-    plt.close()
+plt.suptitle('OPTICS: Distancia de Alcance (xi=0.05) - Tanda 1 (ms=5) vs Tanda 2 (ms=15)',
+             fontsize=13, fontweight='bold')
+plt.tight_layout()
+plt.savefig(PLOTS / '4_mineria' / 'optics_reachability.png', dpi=150)
+plt.close(fig)
 print("[OK] optics_reachability.png")
 
-# Comparacion PCA vs UMAP con OPTICS
-filas = {'PCA': resumen_pca}
+# Comparacion EX2 / EX2.1 / EX4 / EX4.1
+filas = {
+    'EX2 (PCA, ms=5)': resumen_pca,
+    'EX2.1 (PCA, ms=15)': resumen_pca2,
+}
 if umap_ok:
-    filas['UMAP'] = resumen_umap
+    filas['EX4 (UMAP, ms=5)'] = resumen_umap
+    filas['EX4.1 (UMAP, ms=15)'] = resumen_umap2
 df_optics = pd.DataFrame(filas).T
-df_optics['Ganador'] = df_optics['Silhouette'].idxmax()
 
-print('\n=== OPTICS: COMPARACION PCA vs UMAP ===')
+print('\n=== OPTICS: COMPARACION EX2 / EX2.1 / EX4 / EX4.1 ===')
 print(df_optics.round(3))
 
-mejor = df_optics['Ganador'].iloc[0]
-print(f'\n=> La proyeccion con mejor silhouette en OPTICS es {mejor}.')
-if mejor == 'UMAP' and umap_ok:
+for tanda, cols in [
+    ('Tanda 1 (ms=5)', ['EX2 (PCA, ms=5)'] + (['EX4 (UMAP, ms=5)'] if umap_ok else [])),
+    ('Tanda 2 (ms=15)', ['EX2.1 (PCA, ms=15)'] + (['EX4.1 (UMAP, ms=15)'] if umap_ok else [])),
+]:
+    sub = df_optics.loc[cols]
+    print(f'\n=> {tanda}: mejor silhouette = {sub["Silhouette"].idxmax()}')
+
+mejor = df_optics['Silhouette'].idxmax()
+print(f'\n=> Mejor experimento global por silhouette: {mejor}.')
+if 'UMAP' in mejor and umap_ok:
     print('=> Coherente con la conclusion de la reduccion de dimensionalidad.')
 else:
     print('=> Pese a las metricas de preservacion, PCA da clusters mas compactos.')
@@ -712,38 +747,45 @@ def extra_metrics(X, labels, y_true):
 
 
 m_optics_pca = extra_metrics(X_pca_2d, labels_pca, y)
+m_optics_pca2 = extra_metrics(X_pca_2d, labels_pca2, y)
 filas_comp = {
-    'K-Means PCA': grid_pca.loc[k_opt_pca].to_dict(),
-    'OPTICS PCA': {**resumen_pca, **m_optics_pca},
+    'K-Means PCA (EX1)': grid_pca.loc[k_opt_pca].to_dict(),
+    'OPTICS PCA ms=5 (EX2)': {**resumen_pca, **m_optics_pca},
+    'OPTICS PCA ms=15 (EX2.1)': {**resumen_pca2, **m_optics_pca2},
 }
 if umap_ok:
     m_optics_umap = extra_metrics(X_umap, labels_umap, y)
-    filas_comp['K-Means UMAP'] = grid_umap.loc[k_opt_umap].to_dict()
-    filas_comp['OPTICS UMAP'] = {**resumen_umap, **m_optics_umap}
+    m_optics_umap2 = extra_metrics(X_umap, labels_umap2, y)
+    filas_comp['K-Means UMAP (EX3)'] = grid_umap.loc[k_opt_umap].to_dict()
+    filas_comp['OPTICS UMAP ms=5 (EX4)'] = {**resumen_umap, **m_optics_umap}
+    filas_comp['OPTICS UMAP ms=15 (EX4.1)'] = {**resumen_umap2, **m_optics_umap2}
 
 df_comp = pd.DataFrame(filas_comp).T
-print('\n=== COMPARACION FINAL: K-Means vs OPTICS (PCA vs UMAP) ===')
+print('\n=== COMPARACION FINAL: K-Means vs OPTICS (EX1-EX4 + variantes ms=15) ===')
 print(df_comp.round(3))
 
 metricas_grafico = ['Silhouette', 'Davies-Bouldin', 'Calinski-Harabasz', 'ARI', 'NMI', 'Dunn']
+modelos = list(filas_comp.keys())
+n_mod = len(modelos)
 fig, ax = plt.subplots(figsize=(13, 6))
 x = np.arange(len(metricas_grafico))
-width = 0.2
-colores = ['steelblue', 'darkorange', 'mediumseagreen', 'indianred']
-valores_brutos = {m: [filas_comp[mod].get(m, np.nan) for mod in filas_comp] for m in metricas_grafico}
-for i, modelo in enumerate(filas_comp):
+width = 1 / (n_mod + 1)
+colores = plt.cm.tab10(np.linspace(0, 1, n_mod))
+valores_brutos = {m: [filas_comp[mod].get(m, np.nan) for mod in modelos] for m in metricas_grafico}
+for i, modelo in enumerate(modelos):
     vals = []
     for m in metricas_grafico:
         v = valores_brutos[m][i]
         rng = np.nanmax(valores_brutos[m]) - np.nanmin(valores_brutos[m])
         vals.append((v - np.nanmin(valores_brutos[m])) / rng if rng > 0 and np.isfinite(v) else np.nan)
-    ax.bar(x + (i - 1.5) * width, vals, width, label=modelo, color=colores[i], alpha=0.85)
+    ax.bar(x + (i - (n_mod - 1) / 2) * width, vals, width, label=modelo, color=colores[i], alpha=0.85)
 ax.set_xticks(x)
 ax.set_xticklabels(metricas_grafico)
 ax.set_ylim(0, 1.15)
 ax.set_ylabel('Valor normalizado (min-max por metrica)')
-ax.set_title('Comparacion de metricas: K-Means vs OPTICS (EX1-EX4)', fontsize=13, fontweight='bold')
-ax.legend(fontsize=9)
+ax.set_title('Comparacion de metricas: K-Means vs OPTICS (EX1-EX4 + variantes ms=15)',
+             fontsize=13, fontweight='bold')
+ax.legend(fontsize=8)
 ax.grid(axis='y', alpha=0.3)
 plt.tight_layout()
 plt.savefig(PLOTS / '5_evaluacion' / 'clustering_metrics.png', dpi=150)

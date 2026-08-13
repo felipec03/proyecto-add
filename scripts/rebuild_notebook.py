@@ -526,7 +526,14 @@ new_cells.append({
         "| Extraccion de clusters | Directa | `xi` (`cluster_method='xi'`) |\n",
         "| Densidad variable | No | Si |\n",
         "\n",
-        "Los experimentos quedan como **EX2 = PCA + OPTICS** y **EX4 = UMAP + OPTICS**.\n"
+        "Los experimentos quedan como **EX2 = PCA + OPTICS** y **EX4 = UMAP + OPTICS**.\n",
+        "\n",
+        "Para evaluar la sensibilidad a `min_samples`, cada experimento se ejecuta en **dos tandas**:\n",
+        "\n",
+        "| Tanda | Experimentos | `min_samples` |\n",
+        "|---|---|---|\n",
+        "| 1 | EX2, EX4 | 5 |\n",
+        "| 2 | EX2.1, EX4.1 | 15 |\n"
     ]
 })
 
@@ -588,82 +595,118 @@ new_cells.append({
     ], "execution_count": None, "outputs": []
 })
 
-# 43 CD: EX2 PCA + OPTICS
+# 43 CD: EX2 PCA + OPTICS (min_samples=5)
 new_cells.append({
     "cell_type": "code", "metadata": {"id": "optics_pca_cd"},
     "source": [
-        "optics_pca, labels_pca, resumen_pca = run_optics(X_pca_2d, 'PCA')\n",
+        "optics_pca, labels_pca, resumen_pca = run_optics(X_pca_2d, 'EX2 (PCA)', min_samples=5)\n",
         "plot_clusters(\n",
         "    X_pca_2d, labels_pca,\n",
-        "    f'OPTICS sobre PCA (PC1 {varianza_individual[0]*100:.1f}%, PC2 {varianza_individual[1]*100:.1f}%)',\n",
+        "    f'EX2: OPTICS sobre PCA, min_samples=5 (PC1 {varianza_individual[0]*100:.1f}%, PC2 {varianza_individual[1]*100:.1f}%)',\n",
         "    'plots/4_mineria/optics_pca.png'\n",
         ")"
     ], "execution_count": None, "outputs": []
 })
 
-# 44 CD: EX4 UMAP + OPTICS
+# 43b CD: EX2.1 PCA + OPTICS (min_samples=15)
+new_cells.append({
+    "cell_type": "code", "metadata": {"id": "optics_pca_ms15_cd"},
+    "source": [
+        "optics_pca2, labels_pca2, resumen_pca2 = run_optics(X_pca_2d, 'EX2.1 (PCA)', min_samples=15)\n",
+        "plot_clusters(\n",
+        "    X_pca_2d, labels_pca2,\n",
+        "    f'EX2.1: OPTICS sobre PCA, min_samples=15 (PC1 {varianza_individual[0]*100:.1f}%, PC2 {varianza_individual[1]*100:.1f}%)',\n",
+        "    'plots/4_mineria/optics_pca_ms15.png'\n",
+        ")"
+    ], "execution_count": None, "outputs": []
+})
+
+# 44 CD: EX4 UMAP + OPTICS (min_samples=5)
 new_cells.append({
     "cell_type": "code", "metadata": {"id": "optics_umap_cd"},
     "source": [
         "if umap_ok:\n",
-        "    optics_umap, labels_umap, resumen_umap = run_optics(X_umap, 'UMAP')\n",
+        "    optics_umap, labels_umap, resumen_umap = run_optics(X_umap, 'EX4 (UMAP)', min_samples=5)\n",
         "    plot_clusters(\n",
         "        X_umap, labels_umap,\n",
-        "        'OPTICS sobre UMAP (n_neighbors=15, min_dist=0.1)',\n",
+        "        'EX4: OPTICS sobre UMAP, min_samples=5 (n_neighbors=15, min_dist=0.1)',\n",
         "        'plots/4_mineria/optics_umap.png'\n",
         "    )\n",
         "else:\n",
+        "    optics_umap = labels_umap = resumen_umap = None\n",
         "    print('UMAP no disponible.')"
     ], "execution_count": None, "outputs": []
 })
 
-# 45 CD: Reachability plots
+# 44b CD: EX4.1 UMAP + OPTICS (min_samples=15)
 new_cells.append({
-    "cell_type": "code", "metadata": {"id": "optics_reach_cd"},
+    "cell_type": "code", "metadata": {"id": "optics_umap_ms15_cd"},
     "source": [
-        "fig, axes = plt.subplots(1, 2, figsize=(14, 5)) if umap_ok else (None, None)\n",
         "if umap_ok:\n",
-        "    for ax, optics, nombre in zip(axes, [optics_pca, optics_umap], ['PCA', 'UMAP']):\n",
-        "        ord_ = optics.ordering_\n",
-        "        ax.plot(np.arange(len(ord_)), optics.reachability_[ord_], linewidth=0.7, color='steelblue')\n",
-        "        ax.set_title(f'Reachability Plot - {nombre}')\n",
-        "        ax.set_xlabel('Orden de puntos')\n",
-        "        ax.set_ylabel('Distancia de alcance')\n",
-        "        ax.grid(alpha=0.3)\n",
-        "    plt.suptitle('OPTICS: Distancia de Alcance (xi=0.05)', fontsize=13, fontweight='bold')\n",
-        "    plt.tight_layout()\n",
-        "    plt.savefig('plots/4_mineria/optics_reachability.png', dpi=150)\n",
-        "    plt.show()\n",
+        "    optics_umap2, labels_umap2, resumen_umap2 = run_optics(X_umap, 'EX4.1 (UMAP)', min_samples=15)\n",
+        "    plot_clusters(\n",
+        "        X_umap, labels_umap2,\n",
+        "        'EX4.1: OPTICS sobre UMAP, min_samples=15 (n_neighbors=15, min_dist=0.1)',\n",
+        "        'plots/4_mineria/optics_umap_ms15.png'\n",
+        "    )\n",
         "else:\n",
-        "    ord_ = optics_pca.ordering_\n",
-        "    plt.figure(figsize=(8, 5))\n",
-        "    plt.plot(np.arange(len(ord_)), optics_pca.reachability_[ord_], linewidth=0.7, color='steelblue')\n",
-        "    plt.title('Reachability Plot - PCA')\n",
-        "    plt.xlabel('Orden de puntos')\n",
-        "    plt.ylabel('Distancia de alcance')\n",
-        "    plt.grid(alpha=0.3)\n",
-        "    plt.tight_layout()\n",
-        "    plt.savefig('plots/4_mineria/optics_reachability.png', dpi=150)\n",
-        "    plt.show()"
+        "    optics_umap2 = labels_umap2 = resumen_umap2 = None\n",
+        "    print('UMAP no disponible.')"
     ], "execution_count": None, "outputs": []
 })
 
-# 46 CD: Comparacion PCA vs UMAP con OPTICS
+# 45 CD: Reachability plots (2x2: PCA/UMAP x ms=5/ms=15)
+new_cells.append({
+    "cell_type": "code", "metadata": {"id": "optics_reach_cd"},
+    "source": [
+        "fig, axes = plt.subplots(2, 2, figsize=(14, 9))\n",
+        "for fila, ms, o_pca, o_umap in [\n",
+        "    (0, 'min_samples=5', optics_pca, optics_umap),\n",
+        "    (1, 'min_samples=15', optics_pca2, optics_umap2),\n",
+        "]:\n",
+        "    for ax, optics, nombre in [(axes[fila, 0], o_pca, 'PCA'), (axes[fila, 1], o_umap, 'UMAP')]:\n",
+        "        if optics is None:\n",
+        "            ax.axis('off')\n",
+        "            continue\n",
+        "        ord_ = optics.ordering_\n",
+        "        ax.plot(np.arange(len(ord_)), optics.reachability_[ord_], linewidth=0.7, color='steelblue')\n",
+        "        ax.set_title(f'Reachability Plot - {nombre} ({ms})')\n",
+        "        ax.set_xlabel('Orden de puntos')\n",
+        "        ax.set_ylabel('Distancia de alcance')\n",
+        "        ax.grid(alpha=0.3)\n",
+        "plt.suptitle('OPTICS: Distancia de Alcance (xi=0.05) - Tanda 1 (ms=5) vs Tanda 2 (ms=15)', fontsize=13, fontweight='bold')\n",
+        "plt.tight_layout()\n",
+        "plt.savefig('plots/4_mineria/optics_reachability.png', dpi=150)\n",
+        "plt.show()"
+    ], "execution_count": None, "outputs": []
+})
+
+# 46 CD: Comparacion EX2 / EX2.1 / EX4 / EX4.1
 new_cells.append({
     "cell_type": "code", "metadata": {"id": "optics_cmp_cd"},
     "source": [
-        "filas = {'PCA': resumen_pca}\n",
+        "filas = {\n",
+        "    'EX2 (PCA, ms=5)': resumen_pca,\n",
+        "    'EX2.1 (PCA, ms=15)': resumen_pca2,\n",
+        "}\n",
         "if umap_ok:\n",
-        "    filas['UMAP'] = resumen_umap\n",
+        "    filas['EX4 (UMAP, ms=5)'] = resumen_umap\n",
+        "    filas['EX4.1 (UMAP, ms=15)'] = resumen_umap2\n",
         "df_optics = pd.DataFrame(filas).T\n",
-        "df_optics['Ganador'] = df_optics['Silhouette'].idxmax()\n",
         "\n",
-        "print('=== OPTICS: COMPARACION PCA vs UMAP ===')\n",
+        "print('=== OPTICS: COMPARACION EX2 / EX2.1 / EX4 / EX4.1 ===')\n",
         "print(df_optics.round(3))\n",
         "\n",
-        "mejor = df_optics['Ganador'].iloc[0]\n",
-        "print(f'\\n=> La proyeccion con mejor silhouette en OPTICS es {mejor}.')\n",
-        "if mejor == 'UMAP' and umap_ok:\n",
+        "for tanda, cols in [\n",
+        "    ('Tanda 1 (ms=5)', ['EX2 (PCA, ms=5)'] + (['EX4 (UMAP, ms=5)'] if umap_ok else [])),\n",
+        "    ('Tanda 2 (ms=15)', ['EX2.1 (PCA, ms=15)'] + (['EX4.1 (UMAP, ms=15)'] if umap_ok else [])),\n",
+        "]:\n",
+        "    sub = df_optics.loc[cols]\n",
+        "    print(f'\\n=> {tanda}: mejor silhouette = {sub[\"Silhouette\"].idxmax()}')\n",
+        "\n",
+        "mejor = df_optics['Silhouette'].idxmax()\n",
+        "print(f'\\n=> Mejor experimento global por silhouette: {mejor}.')\n",
+        "if 'UMAP' in mejor and umap_ok:\n",
         "    print('=> Coherente con la conclusion de la reduccion de dimensionalidad.')\n",
         "else:\n",
         "    print('=> Pese a las metricas de preservacion, PCA da clusters mas compactos.')"
@@ -943,43 +986,53 @@ new_cells.append({
         "    return res\n",
         "\n",
         "m_optics_pca = extra_metrics(X_pca_2d, labels_pca, y)\n",
+        "m_optics_pca2 = extra_metrics(X_pca_2d, labels_pca2, y)\n",
         "print('=== OPTICS PCA: metricas adicionales (sin ruido) ===')\n",
         "print(pd.Series(m_optics_pca).round(3))\n",
+        "print('\\n=== OPTICS PCA ms=15: metricas adicionales (sin ruido) ===')\n",
+        "print(pd.Series(m_optics_pca2).round(3))\n",
         "\n",
         "filas_comp = {\n",
-        "    'K-Means PCA': grid_pca.loc[k_opt_pca].to_dict(),\n",
-        "    'OPTICS PCA': {**resumen_pca, **m_optics_pca},\n",
+        "    'K-Means PCA (EX1)': grid_pca.loc[k_opt_pca].to_dict(),\n",
+        "    'OPTICS PCA ms=5 (EX2)': {**resumen_pca, **m_optics_pca},\n",
+        "    'OPTICS PCA ms=15 (EX2.1)': {**resumen_pca2, **m_optics_pca2},\n",
         "}\n",
         "if umap_ok:\n",
         "    m_optics_umap = extra_metrics(X_umap, labels_umap, y)\n",
+        "    m_optics_umap2 = extra_metrics(X_umap, labels_umap2, y)\n",
         "    print('\\n=== OPTICS UMAP: metricas adicionales (sin ruido) ===')\n",
         "    print(pd.Series(m_optics_umap).round(3))\n",
-        "    filas_comp['K-Means UMAP'] = grid_umap.loc[k_opt_umap].to_dict()\n",
-        "    filas_comp['OPTICS UMAP'] = {**resumen_umap, **m_optics_umap}\n",
+        "    print('\\n=== OPTICS UMAP ms=15: metricas adicionales (sin ruido) ===')\n",
+        "    print(pd.Series(m_optics_umap2).round(3))\n",
+        "    filas_comp['K-Means UMAP (EX3)'] = grid_umap.loc[k_opt_umap].to_dict()\n",
+        "    filas_comp['OPTICS UMAP ms=5 (EX4)'] = {**resumen_umap, **m_optics_umap}\n",
+        "    filas_comp['OPTICS UMAP ms=15 (EX4.1)'] = {**resumen_umap2, **m_optics_umap2}\n",
         "\n",
         "df_comp = pd.DataFrame(filas_comp).T\n",
-        "print('\\n=== COMPARACION FINAL: K-Means vs OPTICS (PCA vs UMAP) ===')\n",
+        "print('\\n=== COMPARACION FINAL: K-Means vs OPTICS (EX1-EX4 + variantes ms=15) ===')\n",
         "print(df_comp.round(3))\n",
         "\n",
         "metricas_grafico = ['Silhouette', 'Davies-Bouldin', 'Calinski-Harabasz', 'ARI', 'NMI', 'Dunn']\n",
+        "modelos = list(filas_comp.keys())\n",
+        "n_mod = len(modelos)\n",
         "fig, ax = plt.subplots(figsize=(13, 6))\n",
         "x = np.arange(len(metricas_grafico))\n",
-        "width = 0.2\n",
-        "colores = ['steelblue', 'darkorange', 'mediumseagreen', 'indianred']\n",
-        "valores_brutos = {m: [filas_comp[mod].get(m, np.nan) for mod in filas_comp] for m in metricas_grafico}\n",
-        "for i, modelo in enumerate(filas_comp):\n",
+        "width = 1 / (n_mod + 1)\n",
+        "colores = plt.cm.tab10(np.linspace(0, 1, n_mod))\n",
+        "valores_brutos = {m: [filas_comp[mod].get(m, np.nan) for mod in modelos] for m in metricas_grafico}\n",
+        "for i, modelo in enumerate(modelos):\n",
         "    vals = []\n",
         "    for m in metricas_grafico:\n",
         "        v = valores_brutos[m][i]\n",
         "        rng = np.nanmax(valores_brutos[m]) - np.nanmin(valores_brutos[m])\n",
         "        vals.append((v - np.nanmin(valores_brutos[m])) / rng if rng > 0 and np.isfinite(v) else np.nan)\n",
-        "    ax.bar(x + (i - 1.5) * width, vals, width, label=modelo, color=colores[i], alpha=0.85)\n",
+        "    ax.bar(x + (i - (n_mod - 1) / 2) * width, vals, width, label=modelo, color=colores[i], alpha=0.85)\n",
         "ax.set_xticks(x)\n",
         "ax.set_xticklabels(metricas_grafico)\n",
         "ax.set_ylim(0, 1.15)\n",
         "ax.set_ylabel('Valor normalizado (min-max por metrica)')\n",
-        "ax.set_title('Comparacion de metricas: K-Means vs OPTICS (EX1-EX4)', fontsize=13, fontweight='bold')\n",
-        "ax.legend(fontsize=9)\n",
+        "ax.set_title('Comparacion de metricas: K-Means vs OPTICS (EX1-EX4 + variantes ms=15)', fontsize=13, fontweight='bold')\n",
+        "ax.legend(fontsize=8)\n",
         "ax.grid(axis='y', alpha=0.3)\n",
         "plt.tight_layout()\n",
         "plt.savefig('plots/5_evaluacion/clustering_metrics.png', dpi=150)\n",
@@ -1054,7 +1107,8 @@ orden_ids = [
     'metrics_interp_md',
     'kmeans_md', 'kmeans_helpers', 'kmeans_grid', 'kmeans_kopt', 'kmeans_clusters',
     'kmeans_centroides', 'kmeans_interp_md',
-    'optics_md', 'optics_helpers_cd', 'optics_pca_cd', 'optics_umap_cd',
+    'optics_md', 'optics_helpers_cd', 'optics_pca_cd', 'optics_pca_ms15_cd',
+    'optics_umap_cd', 'optics_umap_ms15_cd',
     'optics_reach_cd', 'optics_cmp_cd', 'optics_interp_md',
     'kmeans_compare', 'refs_md',
 ]
