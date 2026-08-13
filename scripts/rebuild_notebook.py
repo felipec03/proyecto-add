@@ -158,7 +158,7 @@ new_cells.append({
         "ax2.set_xticks(comps)\n",
         "\n",
         "plt.tight_layout()\n",
-        "plt.savefig('plots/3_transformacion/pca_varianza.png', dpi=150)\n",
+        "plt.savefig('plots/3_transformacion/pca_varianza.png', dpi=300)\n",
         "plt.show()"
     ], "execution_count": None, "outputs": []
 })
@@ -181,7 +181,7 @@ new_cells.append({
         "            center=0, linewidths=0.5, cbar_kws={'shrink': 0.8, 'label': 'Peso'})\n",
         "plt.title('Loadings: Contribucion de Variables a PCs')\n",
         "plt.tight_layout()\n",
-        "plt.savefig('plots/3_transformacion/pca_loadings.png', dpi=150)\n",
+        "plt.savefig('plots/3_transformacion/pca_loadings.png', dpi=300)\n",
         "plt.show()"
     ], "execution_count": None, "outputs": []
 })
@@ -201,7 +201,7 @@ new_cells.append({
         "cbar = plt.colorbar(scatter, label='Severidad (0-4)')\n",
         "plt.grid(alpha=0.3)\n",
         "plt.tight_layout()\n",
-        "plt.savefig('plots/3_transformacion/pca_proyeccion_2d.png', dpi=150)\n",
+        "plt.savefig('plots/3_transformacion/pca_proyeccion_2d.png', dpi=300)\n",
         "plt.show()\n",
         "\n",
         "print(f'Varianza explicada en 2D: {varianza_acumulada[1]*100:.1f}%')"
@@ -311,7 +311,7 @@ new_cells.append({
         "    cbar = fig.colorbar(sc2, ax=axes, label='Severidad (0-4)', shrink=0.6)\n",
         "    plt.suptitle('PCA vs UMAP - Heart Disease', fontsize=13, fontweight='bold')\n",
         "    plt.tight_layout()\n",
-        "    plt.savefig('plots/3_transformacion/pca_vs_umap.png', dpi=150)\n",
+        "    plt.savefig('plots/3_transformacion/pca_vs_umap.png', dpi=300)\n",
         "    plt.show()\n",
         "else:\n",
         "    print('UMAP no disponible.')"
@@ -342,7 +342,7 @@ new_cells.append({
         "\n",
         "    plt.suptitle('UMAP: Efecto de Hiperparametros', fontsize=14, fontweight='bold')\n",
         "    plt.tight_layout()\n",
-        "    plt.savefig('plots/3_transformacion/umap_hiperparametros.png', dpi=150)\n",
+        "    plt.savefig('plots/3_transformacion/umap_hiperparametros.png', dpi=300)\n",
         "    plt.show()\n",
         "else:\n",
         "    print('UMAP no disponible.')"
@@ -477,7 +477,7 @@ new_cells.append({
         "    ax.text(bar.get_x() + bar.get_width()/2., h + 0.01, f'{h:.3f}', ha='center', va='bottom', fontsize=9)\n",
         "\n",
         "plt.tight_layout()\n",
-        "plt.savefig('plots/5_evaluacion/pca_vs_umap_metrics.png', dpi=150)\n",
+        "plt.savefig('plots/5_evaluacion/pca_vs_umap_metrics.png', dpi=300)\n",
         "plt.show()"
     ], "execution_count": None, "outputs": []
 })
@@ -590,7 +590,7 @@ new_cells.append({
         "    plt.legend()\n",
         "    plt.grid(alpha=0.3)\n",
         "    plt.tight_layout()\n",
-        "    plt.savefig(filename, dpi=150)\n",
+        "    plt.savefig(filename, dpi=300)\n",
         "    plt.show()"
     ], "execution_count": None, "outputs": []
 })
@@ -676,7 +676,7 @@ new_cells.append({
         "        ax.grid(alpha=0.3)\n",
         "plt.suptitle('OPTICS: Distancia de Alcance (xi=0.05) - Tanda 1 (ms=5) vs Tanda 2 (ms=15)', fontsize=13, fontweight='bold')\n",
         "plt.tight_layout()\n",
-        "plt.savefig('plots/4_mineria/optics_reachability.png', dpi=150)\n",
+        "plt.savefig('plots/4_mineria/optics_reachability.png', dpi=300)\n",
         "plt.show()"
     ], "execution_count": None, "outputs": []
 })
@@ -828,7 +828,7 @@ new_cells.append({
         "        ax.set_xticks(list(grid.index))\n",
         "    fig.suptitle(titulo, fontsize=13, fontweight='bold')\n",
         "    plt.tight_layout()\n",
-        "    plt.savefig(filename, dpi=150)\n",
+        "    plt.savefig(filename, dpi=300)\n",
         "    plt.show()\n"
     ], "execution_count": None, "outputs": []
 })
@@ -891,7 +891,7 @@ new_cells.append({
         "    ax.grid(alpha=0.3)\n",
         "    ax.legend()\n",
         "plt.tight_layout()\n",
-        "plt.savefig('plots/4_mineria/kmeans_silhouette.png', dpi=150)\n",
+        "plt.savefig('plots/4_mineria/kmeans_silhouette.png', dpi=300)\n",
         "plt.show()\n"
     ], "execution_count": None, "outputs": []
 })
@@ -914,7 +914,7 @@ new_cells.append({
         "ax.legend()\n",
         "ax.grid(alpha=0.3)\n",
         "plt.tight_layout()\n",
-        "plt.savefig('plots/4_mineria/kmeans_pca.png', dpi=150)\n",
+        "plt.savefig('plots/4_mineria/kmeans_pca.png', dpi=300)\n",
         "plt.show()\n",
         "\n",
         "if umap_ok:\n",
@@ -929,7 +929,7 @@ new_cells.append({
         "    ax.legend()\n",
         "    ax.grid(alpha=0.3)\n",
         "    plt.tight_layout()\n",
-        "    plt.savefig('plots/4_mineria/kmeans_umap.png', dpi=150)\n",
+        "    plt.savefig('plots/4_mineria/kmeans_umap.png', dpi=300)\n",
         "    plt.show()\n"
     ], "execution_count": None, "outputs": []
 })
@@ -1035,7 +1035,7 @@ new_cells.append({
         "ax.legend(fontsize=8)\n",
         "ax.grid(axis='y', alpha=0.3)\n",
         "plt.tight_layout()\n",
-        "plt.savefig('plots/5_evaluacion/clustering_metrics.png', dpi=150)\n",
+        "plt.savefig('plots/5_evaluacion/clustering_metrics.png', dpi=300)\n",
         "plt.show()\n"
     ], "execution_count": None, "outputs": []
 })

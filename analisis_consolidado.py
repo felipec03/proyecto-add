@@ -66,7 +66,7 @@ for i, col in enumerate(variables_clave):
 for j in range(len(variables_clave), len(axes)):
     fig.delaxes(axes[j])
 plt.tight_layout()
-plt.savefig(PLOTS / '1_seleccion_eda' / 'histogramas.png', dpi=150)
+plt.savefig(PLOTS / '1_seleccion_eda' / 'histogramas.png', dpi=300)
 plt.close(fig)
 print("[OK] histogramas.png")
 
@@ -85,7 +85,7 @@ for i, col in enumerate(vars_boxplot):
     axes[i].set_ylabel(col)
     axes[i].grid(axis='y', alpha=0.3)
 plt.tight_layout()
-plt.savefig(PLOTS / '1_seleccion_eda' / 'boxplots.png', dpi=150)
+plt.savefig(PLOTS / '1_seleccion_eda' / 'boxplots.png', dpi=300)
 plt.close(fig)
 print("[OK] boxplots.png")
 
@@ -96,7 +96,7 @@ sns.boxplot(x='Variable', y='Valor', data=df_melt, hue='Variable', legend=False,
 plt.title('Boxplots Combinados - Variables Criticas')
 plt.xticks(rotation=30)
 plt.tight_layout()
-plt.savefig(PLOTS / '1_seleccion_eda' / 'boxplots_combinados.png', dpi=150)
+plt.savefig(PLOTS / '1_seleccion_eda' / 'boxplots_combinados.png', dpi=300)
 plt.close()
 print("[OK] boxplots_combinados.png")
 
@@ -112,7 +112,7 @@ sns.heatmap(corr_matrix, mask=mask, annot=True, fmt='.2f', cmap='coolwarm',
             cbar_kws={'shrink': 0.8, 'label': 'Coeficiente de Correlacion'})
 plt.title('Heatmap de Correlacion - Heart Disease Dataset', fontsize=14, fontweight='bold')
 plt.tight_layout()
-plt.savefig(PLOTS / '1_seleccion_eda' / 'heatmap_correlacion.png', dpi=150)
+plt.savefig(PLOTS / '1_seleccion_eda' / 'heatmap_correlacion.png', dpi=300)
 plt.close()
 print("[OK] heatmap_correlacion.png\n")
 
@@ -227,7 +227,7 @@ ax2.legend()
 ax2.grid(alpha=0.3)
 ax2.set_xticks(comps)
 plt.tight_layout()
-plt.savefig(PLOTS / '3_transformacion' / 'pca_varianza.png', dpi=150)
+plt.savefig(PLOTS / '3_transformacion' / 'pca_varianza.png', dpi=300)
 plt.close(fig)
 print("[OK] pca_varianza.png")
 
@@ -244,7 +244,7 @@ sns.heatmap(loadings.iloc[:, :5], annot=True, fmt='.2f', cmap='RdBu_r',
             center=0, linewidths=0.5, cbar_kws={'shrink': 0.8, 'label': 'Peso'})
 plt.title('Loadings: Contribucion de Variables a PCs')
 plt.tight_layout()
-plt.savefig(PLOTS / '3_transformacion' / 'pca_loadings.png', dpi=150)
+plt.savefig(PLOTS / '3_transformacion' / 'pca_loadings.png', dpi=300)
 plt.close()
 print("[OK] pca_loadings.png")
 
@@ -258,7 +258,7 @@ plt.title('Proyeccion PCA 2D - Heart Disease')
 plt.colorbar(scatter, label='Severidad (0-4)')
 plt.grid(alpha=0.3)
 plt.tight_layout()
-plt.savefig(PLOTS / '3_transformacion' / 'pca_proyeccion_2d.png', dpi=150)
+plt.savefig(PLOTS / '3_transformacion' / 'pca_proyeccion_2d.png', dpi=300)
 plt.close()
 print("[OK] pca_proyeccion_2d.png")
 print(f"Varianza explicada en 2D: {varianza_acumulada[1]*100:.1f}%\n")
@@ -300,7 +300,7 @@ if umap_ok:
     fig.colorbar(sc2, ax=axes, label='Severidad (0-4)', shrink=0.6)
     plt.suptitle('PCA vs UMAP - Heart Disease', fontsize=13, fontweight='bold')
     plt.tight_layout()
-    plt.savefig(PLOTS / '3_transformacion' / 'pca_vs_umap.png', dpi=150)
+    plt.savefig(PLOTS / '3_transformacion' / 'pca_vs_umap.png', dpi=300)
     plt.close(fig)
     print("[OK] pca_vs_umap.png")
 else:
@@ -389,7 +389,7 @@ for bar in list(b1) + list(b2):
     h = bar.get_height()
     ax.text(bar.get_x() + bar.get_width()/2., h + 0.01, f'{h:.3f}', ha='center', va='bottom', fontsize=9)
 plt.tight_layout()
-plt.savefig(PLOTS / '5_evaluacion' / 'pca_vs_umap_metrics.png', dpi=150)
+plt.savefig(PLOTS / '5_evaluacion' / 'pca_vs_umap_metrics.png', dpi=300)
 plt.close(fig)
 print("[OK] pca_vs_umap_metrics.png")
 
@@ -452,7 +452,7 @@ def plot_clusters(X, labels, titulo, filename):
     plt.legend()
     plt.grid(alpha=0.3)
     plt.tight_layout()
-    plt.savefig(filename, dpi=150)
+    plt.savefig(filename, dpi=300)
     plt.close()
     print(f"[OK] {filename}")
 
@@ -521,7 +521,7 @@ for fila, ms, o_pca, o_umap in [
 plt.suptitle('OPTICS: Distancia de Alcance (xi=0.05) - Tanda 1 (ms=5) vs Tanda 2 (ms=15)',
              fontsize=13, fontweight='bold')
 plt.tight_layout()
-plt.savefig(PLOTS / '4_mineria' / 'optics_reachability.png', dpi=150)
+plt.savefig(PLOTS / '4_mineria' / 'optics_reachability.png', dpi=300)
 plt.close(fig)
 print("[OK] optics_reachability.png")
 
@@ -615,7 +615,7 @@ def plot_seleccion_k(grid, titulo, filename):
         ax.set_xticks(list(grid.index))
     fig.suptitle(titulo, fontsize=13, fontweight='bold')
     plt.tight_layout()
-    plt.savefig(filename, dpi=150)
+    plt.savefig(filename, dpi=300)
     plt.close(fig)
     print(f"[OK] {filename.name}")
 
@@ -671,7 +671,7 @@ for ax, (k, km, X, nombre) in zip(axes, pares):
     ax.grid(alpha=0.3)
     ax.legend()
 plt.tight_layout()
-plt.savefig(PLOTS / '4_mineria' / 'kmeans_silhouette.png', dpi=150)
+plt.savefig(PLOTS / '4_mineria' / 'kmeans_silhouette.png', dpi=300)
 plt.close(fig)
 print("[OK] kmeans_silhouette.png")
 
@@ -690,7 +690,7 @@ ax.set_title(f'EX1: K-Means sobre PCA (k={k_opt_pca})')
 ax.legend()
 ax.grid(alpha=0.3)
 plt.tight_layout()
-plt.savefig(PLOTS / '4_mineria' / 'kmeans_pca.png', dpi=150)
+plt.savefig(PLOTS / '4_mineria' / 'kmeans_pca.png', dpi=300)
 plt.close(fig)
 print("[OK] kmeans_pca.png")
 
@@ -706,7 +706,7 @@ if umap_ok:
     ax.legend()
     ax.grid(alpha=0.3)
     plt.tight_layout()
-    plt.savefig(PLOTS / '4_mineria' / 'kmeans_umap.png', dpi=150)
+    plt.savefig(PLOTS / '4_mineria' / 'kmeans_umap.png', dpi=300)
     plt.close(fig)
     print("[OK] kmeans_umap.png")
 
@@ -788,6 +788,6 @@ ax.set_title('Comparacion de metricas: K-Means vs OPTICS (EX1-EX4 + variantes ms
 ax.legend(fontsize=8)
 ax.grid(axis='y', alpha=0.3)
 plt.tight_layout()
-plt.savefig(PLOTS / '5_evaluacion' / 'clustering_metrics.png', dpi=150)
+plt.savefig(PLOTS / '5_evaluacion' / 'clustering_metrics.png', dpi=300)
 plt.close(fig)
 print("[OK] clustering_metrics.png")
